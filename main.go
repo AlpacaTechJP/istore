@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/golang/glog"
 	"github.com/gregjones/httpcache"
@@ -34,15 +35,28 @@ func NewProxy() *Proxy {
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	url := r.FormValue("url")
-	glog.Info(url)
+	var urlstr string
+	if strings.HasPrefix(r.URL.Path, "/pub/") {
+		urlstr = r.URL.Path[5:]
+	} else {
+		http.NotFound(w, r)
+		return
+	}
+	glog.Info(urlstr)
 
 	client := p.Client
-	resp, err := client.Get(url)
+	resp, err := client.Get(urlstr)
 	if err != nil {
-		msg := fmt.Sprintf("remote URL %q returned status: %v", url, resp.Status)
+		var msg string
+		statusCode := http.StatusBadRequest
+		if resp == nil {
+			msg = fmt.Sprintf("%v", err)
+		} else {
+			msg = fmt.Sprintf("remote URL %q returned status: %v", urlstr, resp.Status)
+			statusCode = resp.StatusCode
+		}
 		glog.Error(msg)
-		http.Error(w, msg, resp.StatusCode)
+		http.Error(w, msg, statusCode)
 		return
 	}
 
