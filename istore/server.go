@@ -1,14 +1,18 @@
 package istore
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/golang/glog"
 	"github.com/gregjones/httpcache"
 	"github.com/syndtr/goleveldb/leveldb"
+	levelutil "github.com/syndtr/goleveldb/leveldb/util"
 )
 
 const _DbFile = "/tmp/metadb"
@@ -24,6 +28,16 @@ func copyHeader(w http.ResponseWriter, r *http.Response, header string) {
 	if value, ok := r.Header[key]; ok {
 		w.Header()[key] = value
 	}
+}
+
+func extractTargetURL(path string) string {
+	r := regexp.MustCompile("^.+/([0-9a-z]+\\://.+)$")
+	strs := r.FindStringSubmatch(path)
+
+	if len(strs) > 1 {
+		return strs[1]
+	}
+	return ""
 }
 
 func NewServer() *Server {
@@ -43,7 +57,7 @@ func NewServer() *Server {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	glog.Infof("%v", r)
+	glog.Infof("%s %s %s", r.Method, r.URL, r.Proto)
 	switch r.Method {
 	case "POST", "PUT":
 		s.ServePost(w, r)
@@ -58,7 +72,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
-	meta := r.FormValue("meta-data")
+	meta := r.FormValue("metadata")
+	// TODO: metadata is supposed to be json.  Validate it.
 
 	if err := s.Db.Put([]byte(key), []byte(meta), nil); err != nil {
 		msg := fmt.Sprintf("put failed for %s: %v", key, err)
@@ -70,18 +85,47 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
-func extractTargetURL(path string) string {
-	r := regexp.MustCompile("^.+/([0-9a-z]+\\://.+)$")
-	strs := r.FindStringSubmatch(path)
+func (s *Server) ServeList(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+	iter := s.Db.NewIterator(levelutil.BytesPrefix([]byte(path)), nil)
+	results := []interface{}{}
+	for iter.Next() {
+		result := map[string]interface{}{}
+		result["filepath"] = string(iter.Key())
 
-	if len(strs) > 1 {
-		return strs[1]
+		var metadata interface{}
+		value := iter.Value()
+		if value != nil {
+			reader := bytes.NewReader(value)
+			decoder := json.NewDecoder(reader)
+			decoder.Decode(&metadata)
+		}
+		result["metadata"] = metadata
+		results = append(results, result)
 	}
-	return ""
+	iter.Release()
+	err := iter.Error()
+	if err != nil {
+		msg := fmt.Sprint(err)
+		glog.Error(msg)
+		http.Error(w, "Error", http.StatusInternalServerError)
+	}
+
+	w.Header()["Content-type"] = []string{"application/json"}
+	encoder := json.NewEncoder(w)
+	if err := encoder.Encode(results); err != nil {
+		glog.Error(err)
+	}
 }
 
 func (s *Server) ServeGet(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+
+	if strings.HasSuffix(path, "/") {
+		s.ServeList(w, r)
+		return
+	}
+
 	if _, err := s.Db.Get([]byte(path), nil); err != nil {
 		if err == leveldb.ErrNotFound {
 			http.NotFound(w, r)
