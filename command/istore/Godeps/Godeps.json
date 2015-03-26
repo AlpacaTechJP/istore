@@ -1,0 +1,22 @@
+{
+	"ImportPath": "github.com/AlpacaDB/istore/command/istore",
+	"GoVersion": "go1.3",
+	"Deps": [
+		{
+			"ImportPath": "github.com/golang/glog",
+			"Rev": "44145f04b68cf362d9c4df2182967c2275eaefed"
+		},
+		{
+			"ImportPath": "github.com/gregjones/httpcache",
+			"Rev": "4fb00a8eec008ffa8ac9ec46a93684dcbb62fc09"
+		},
+		{
+			"ImportPath": "github.com/syndtr/goleveldb/leveldb",
+			"Rev": "87e4e645d80ae9c537e8f2dee52b28036a5dd75e"
+		},
+		{
+			"ImportPath": "github.com/syndtr/gosnappy/snappy",
+			"Rev": "156a073208e131d7d2e212cb749feae7c339e846"
+		}
+	]
+}
