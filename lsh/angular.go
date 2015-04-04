@@ -33,6 +33,9 @@ func (_ Angular) Distance(x, y []float32) float32 {
 }
 
 func (_ Angular) Side(x, y []float32) bool {
+	// cos_theta = (x dot y) / (norm(x) * norm(y))
+	// the denominator does not contribute to the sign, so
+	// side = (x dot y) > 0
 	var dot float32 = 0
 	for i := 0; i < len(x); i++ {
 		dot += x[i] * y[i]
@@ -53,6 +56,7 @@ func (a Angular) GetBitVector(vecs [][]float32, v []float32) *bitvector.BitVecto
 	return bv
 }
 
+// TODO: not implemented.
 type Euclidean struct{}
 
 func (e *Euclidean) distance(x, y []float32) float32 {

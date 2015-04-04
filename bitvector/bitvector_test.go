@@ -28,6 +28,24 @@ func (_ *S) TestScan(c *C) {
 	c.Check(MustScan("01010101 10101010").String(), Equals, "01010101 10101010")
 }
 
+func (_ *S) TestUint32(c *C) {
+	bv := New(15)
+	bv.Set(0)
+	c.Check(bv.Uint32(), Equals, uint32(1))
+
+	bv.Set(8)
+	c.Check(bv.Uint32(), Equals, uint32(1 << 8 | 1))
+
+	// trim size, bit(14) is ignored.
+	bv.Set(14)
+	bv2 := FromUint32(bv.Uint32(), 14)
+	c.Check(bv2.Uint32(), Equals, uint32(1 << 8 | 1))
+
+	// trim more to lower bytes, bit(8) is also cut off
+	bv3 := FromUint32(bv.Uint32(), 8)
+	c.Check(bv3.Uint32(), Equals, uint32(1))
+}
+
 func (_ *S) TestHamming(c *C) {
 	c.Check(
 		Hamming(MustScan("11111111"), MustScan("00000000")),

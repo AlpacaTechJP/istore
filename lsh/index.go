@@ -1,8 +1,10 @@
 package lsh
 
-import(
+import (
 	"math"
 	"math/rand"
+
+	"github.com/AlpacaDB/istore/bitvector"
 )
 
 type Indexer struct {
@@ -13,7 +15,7 @@ type Indexer struct {
 	distance   Distance
 	hyperplane [][]float32
 	storage    *Storage
-	lookup     map[uint64]int
+	lookup     map[uint32]int
 }
 
 type Storage struct {
@@ -24,6 +26,9 @@ type Storage struct {
 type Page [1024]uint64
 
 func NewIndexer(seed int64, bitsize int, vecsize int) *Indexer {
+	if bitsize > 32 {
+		panic("currently bitsize > 32 is not supported")
+	}
 	idx := &Indexer{
 		rng:      rand.New(rand.NewSource(seed)),
 		seed:     seed,
@@ -31,7 +36,7 @@ func NewIndexer(seed int64, bitsize int, vecsize int) *Indexer {
 		vecsize:  vecsize,
 		distance: Angular{},
 		storage:  &Storage{},
-		lookup:   map[uint64]int{},
+		lookup:   map[uint32]int{},
 	}
 
 	// init hyperplane
@@ -56,10 +61,10 @@ func NewIndexer(seed int64, bitsize int, vecsize int) *Indexer {
 
 func (idx *Indexer) Add(itemid uint64, vec []float32) {
 	key := idx.distance.GetBitVector(idx.hyperplane, vec)
-	pageno, ok := idx.lookup[key.Uint64()]
+	pageno, ok := idx.lookup[key.Uint32()]
 	if !ok {
 		pageno = idx.allocatePage()
-		idx.lookup[key.Uint64()] = pageno
+		idx.lookup[key.Uint32()] = pageno
 	}
 	idx.storage.pages[pageno].Add(itemid)
 }
@@ -70,34 +75,47 @@ func (idx *Indexer) allocatePage() int {
 	return n
 }
 
-// Search searches items similar to the given vector up to limit number.
-// Currently it looks up only the same hash value.  (look for another
-// bucket is TODO)
+// Search searches items close to the given vector up to the limit.
 func (idx *Indexer) Search(vec []float32, limit int) []uint64 {
 	key := idx.distance.GetBitVector(idx.hyperplane, vec)
-	pageno, ok := idx.lookup[key.Uint64()]
-	if !ok {
-		return []uint64{}
-	}
-	page := &idx.storage.pages[pageno]
 
-	result := make([]uint64, 0, limit)
-	i := 0
-	for {
-		if len(result) == limit {
+	lkeys := make([]*bitvector.BitVector, 0, len(idx.lookup))
+	for k, _ := range idx.lookup {
+		lkeys = append(lkeys, bitvector.FromUint32(k, idx.bitsize))
+	}
+	bitvector.BitVectorSlice(lkeys).SortFrom(key)
+
+	items := make([]uint64, 0, limit)
+	var lastdist int
+	for len(lkeys) > 0 {
+		thiskey := lkeys[0]
+		thisdist := bitvector.Hamming(key, thiskey)
+
+		// We continue to collect items even if it exeeds requested limit,
+		// as far as the haming distance is the same.
+		if lastdist != thisdist && len(items) >= limit {
 			break
 		}
+		lastdist = thisdist
+		lkeys = lkeys[1:]
 
-		if page.Get(i) == 0 {
-			break
+		// the key should exist
+		pageno := idx.lookup[thiskey.Uint32()]
+		page := &idx.storage.pages[pageno]
+		i := 0
+		for {
+			if page.Get(i) == 0 {
+				break
+			}
+			items = append(items, page.Get(i))
+			i++
+
+			// TODO: go to next page if it exceeds items in page
 		}
-		result = append(result, page.Get(i))
-		i++
-
-		// TODO: go to next page if i exceeds items in page
 	}
 
-	return result
+	// TODO: sort and limit
+	return items
 }
 
 func (p *Page) Add(itemid uint64) {

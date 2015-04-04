@@ -12,7 +12,7 @@ type BitVector struct {
 }
 
 func New(size int) *BitVector {
-	nbytes := size >> 3
+	nbytes := (size + 7) >> 3
 	bits := make([]uint8, nbytes, nbytes)
 	return &BitVector{
 		size: size,
@@ -84,20 +84,40 @@ func MustScan(s string) *BitVector {
 }
 
 // Uint64 returns the integer value of the first 64 bits.
-func (bv *BitVector) Uint64() uint64 {
+func (bv *BitVector) Uint32() uint32 {
 	if bv.size <= 8 {
-		return uint64(bv.bits[0])
+		return uint32(bv.bits[0])
 	} else if bv.size <= 16 {
-		return uint64((uint64(bv.bits[1]) << 8) | uint64(bv.bits[0]))
+		return (uint32(bv.bits[1]) << 8) | uint32(bv.bits[0])
 	} else if bv.size <= 24 {
-		return uint64((uint64(bv.bits[2]) << 16) | (uint64(bv.bits[1]) << 8) | uint64(bv.bits[0]))
+		return (uint32(bv.bits[2]) << 16) | (uint32(bv.bits[1]) << 8) | uint32(bv.bits[0])
 	}
 
-	return uint64((uint64(bv.bits[3]) << 24) | (uint64(bv.bits[2]) << 16) | (uint64(bv.bits[1]) << 8) | uint64(bv.bits[0]))
+	return (uint32(bv.bits[3]) << 24) | (uint32(bv.bits[2]) << 16) | (uint32(bv.bits[1]) << 8) | uint32(bv.bits[0])
+}
+
+func FromUint32(v uint32, size int) *BitVector {
+	var bits []byte
+	// mask up to valid bits
+	v &= ^(0xffffffff << uint(size))
+	if size <= 8 {
+		bits = []uint8{uint8(v)}
+	} else if size <= 16 {
+		bits = []uint8{uint8(v), uint8((v & 0xff00) >> 8)}
+	} else if size <= 24 {
+		bits = []uint8{uint8(v), uint8((v & 0xff00) >> 8), uint8((v & 0xff000) >> 16)}
+	} else {
+		bits = []uint8{uint8(v), uint8((v & 0xff00) >> 8), uint8((v & 0xff000) >> 16), uint8((v & 0xff000000) >> 24)}
+	}
+
+	return &BitVector{
+		size: size,
+		bits: bits,
+	}
 }
 
 func (bv *BitVector) ByteSize() int {
-	return (bv.size+7) >> 3
+	return (bv.size + 7) >> 3
 }
 
 // A slice of BitVector
@@ -125,7 +145,7 @@ func Hamming(x, y *BitVector) int {
 	dist := 0
 
 	for i := 0; i < x.ByteSize(); i++ {
-		dist += int(popcnt[x.bits[i] ^ y.bits[i]])
+		dist += int(popcnt[x.bits[i]^y.bits[i]])
 	}
 
 	return dist
