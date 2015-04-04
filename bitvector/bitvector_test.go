@@ -12,7 +12,7 @@ type S struct{}
 
 var _ = Suite(&S{})
 
-func (_ *S) TestString(c *C) {
+func (_ *S) TestBasic(c *C) {
 	bv := New(16)
 	bv.Set(0)
 	bv.Set(3)

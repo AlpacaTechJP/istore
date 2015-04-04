@@ -93,7 +93,7 @@ func (bv *BitVector) Uint64() uint64 {
 }
 
 func (bv *BitVector) ByteSize() int {
-	return bv.size>>3 + 1
+	return (bv.size+7) >> 3
 }
 
 // experimental.
@@ -119,10 +119,8 @@ func (s BitVectorSlice) Swap(i, j int) {
 func Hamming(x, y *BitVector) int {
 	dist := 0
 
-	for i := 0; i < x.size; i++ {
-		if x.Get(uint(i)) != y.Get(uint(i)) {
-			dist++
-		}
+	for i := 0; i < x.ByteSize(); i++ {
+		dist += int(popcnt[x.bits[i] ^ y.bits[i]])
 	}
 
 	return dist
