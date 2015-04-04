@@ -2,11 +2,13 @@ package lsh
 
 import (
 	"math"
+
+	"github.com/AlpacaDB/istore/bitvector"
 )
 
 type Distance interface {
 	Distance(x, y []float32) float32
-	GetBitVector(vecs [][]float32, v []float32) *BitVector
+	GetBitVector(vecs [][]float32, v []float32) *bitvector.BitVector
 }
 
 type Angular struct{}
@@ -38,9 +40,9 @@ func (_ Angular) Side(x, y []float32) bool {
 	return dot > 0
 }
 
-func (a Angular) GetBitVector(vecs [][]float32, v []float32) *BitVector {
+func (a Angular) GetBitVector(vecs [][]float32, v []float32) *bitvector.BitVector {
 	l := len(vecs)
-	bv := NewBitVector(l)
+	bv := bitvector.New(l)
 
 	for i := 0; i < l; i++ {
 		if a.Side(vecs[i], v) {
