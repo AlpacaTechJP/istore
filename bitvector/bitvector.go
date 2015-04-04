@@ -1,4 +1,4 @@
-package lsh
+package bitvector
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ type BitVector struct {
 	bits []uint8
 }
 
-func NewBitVector(size int) *BitVector {
+func New(size int) *BitVector {
 	nbytes := size >> 3
 	bits := make([]uint8, nbytes, nbytes)
 	return &BitVector{
@@ -22,6 +22,10 @@ func NewBitVector(size int) *BitVector {
 
 func (bv *BitVector) Set(i uint) {
 	bv.bits[i>>3] |= uint8(0x1) << (i & 0x7)
+}
+
+func (bv *BitVector) Unset(i uint) {
+	bv.bits[i>>3] &= ^(uint8(0x1) << (i & 0x7))
 }
 
 func (bv *BitVector) Get(i uint) bool {
@@ -45,7 +49,7 @@ func (bv *BitVector) String() string {
 	return buf.String()
 }
 
-func BitVectorFromString(s string) (*BitVector, error) {
+func Scan(s string) (*BitVector, error) {
 	bits := make([]bool, 0, len(s))
 	for _, c := range s {
 		switch c {
@@ -58,7 +62,7 @@ func BitVectorFromString(s string) (*BitVector, error) {
 			return nil, errors.New("BitVector parse error")
 		}
 	}
-	bv := NewBitVector(len(bits))
+	bv := New(len(bits))
 	for i, b := range bits {
 		if b {
 			bv.Set(uint(i))
@@ -66,6 +70,14 @@ func BitVectorFromString(s string) (*BitVector, error) {
 	}
 
 	return bv, nil
+}
+
+func MustScan(s string) *BitVector {
+	bv, err := Scan(s)
+	if err != nil {
+		panic(err)
+	}
+	return bv
 }
 
 func (bv *BitVector) Uint64() uint64 {
@@ -116,7 +128,7 @@ func Hamming(x, y *BitVector) int {
 	return dist
 }
 
-type ByHamming struct{
+type ByHamming struct {
 	BitVectorSlice
 	c *BitVector
 }
@@ -126,7 +138,6 @@ func (s *ByHamming) Less(i, j int) bool {
 	dist_j := Hamming(s.c, s.BitVectorSlice[j])
 	return dist_i < dist_j
 }
-
 
 func (s BitVectorSlice) SortFrom(c *BitVector) {
 	sorter := &ByHamming{s, c}
