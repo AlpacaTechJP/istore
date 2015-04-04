@@ -2,6 +2,8 @@ package lsh
 
 import (
 	"bytes"
+	"errors"
+	"sort"
 )
 
 type BitVector struct {
@@ -43,6 +45,29 @@ func (bv *BitVector) String() string {
 	return buf.String()
 }
 
+func BitVectorFromString(s string) (*BitVector, error) {
+	bits := make([]bool, 0, len(s))
+	for _, c := range s {
+		switch c {
+		case '1':
+			bits = append(bits, true)
+		case '0':
+			bits = append(bits, false)
+		case ' ':
+		default:
+			return nil, errors.New("BitVector parse error")
+		}
+	}
+	bv := NewBitVector(len(bits))
+	for i, b := range bits {
+		if b {
+			bv.Set(uint(i))
+		}
+	}
+
+	return bv, nil
+}
+
 func (bv *BitVector) Uint64() uint64 {
 	if bv.size <= 8 {
 		return uint64(bv.bits[0])
@@ -53,4 +78,57 @@ func (bv *BitVector) Uint64() uint64 {
 	}
 
 	return uint64((uint64(bv.bits[3]) << 24) | (uint64(bv.bits[2]) << 16) | (uint64(bv.bits[1]) << 8) | uint64(bv.bits[0]))
+}
+
+func (bv *BitVector) ByteSize() int {
+	return bv.size>>3 + 1
+}
+
+// experimental.
+type BitVectorSlice []*BitVector
+
+func (s BitVectorSlice) Len() int {
+	return len(s)
+}
+
+func (s BitVectorSlice) Less(i, j int) bool {
+	for x := 0; x < s[i].ByteSize(); x++ {
+		if s[i].bits[x] != s[j].bits[x] {
+			return s[i].bits[x] < s[j].bits[x]
+		}
+	}
+	return false
+}
+
+func (s BitVectorSlice) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func Hamming(x, y *BitVector) int {
+	dist := 0
+
+	for i := 0; i < x.size; i++ {
+		if x.Get(uint(i)) != y.Get(uint(i)) {
+			dist++
+		}
+	}
+
+	return dist
+}
+
+type ByHamming struct{
+	BitVectorSlice
+	c *BitVector
+}
+
+func (s *ByHamming) Less(i, j int) bool {
+	dist_i := Hamming(s.c, s.BitVectorSlice[i])
+	dist_j := Hamming(s.c, s.BitVectorSlice[j])
+	return dist_i < dist_j
+}
+
+
+func (s BitVectorSlice) SortFrom(c *BitVector) {
+	sorter := &ByHamming{s, c}
+	sort.Sort(sorter)
 }
