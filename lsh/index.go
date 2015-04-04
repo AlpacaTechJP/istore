@@ -83,7 +83,7 @@ func (idx *Indexer) Search(vec []float32, limit int) []uint64 {
 	for k, _ := range idx.lookup {
 		lkeys = append(lkeys, bitvector.FromUint32(k, idx.bitsize))
 	}
-	bitvector.BitVectorSlice(lkeys).SortFrom(key)
+	bitvector.Slice(lkeys).SortFrom(key)
 
 	items := make([]uint64, 0, limit)
 	var lastdist int

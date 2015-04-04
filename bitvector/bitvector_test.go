@@ -62,7 +62,7 @@ func ExampleSortFrom() {
 
 	var c *BitVector
 	c, _ = Scan("10010001")
-	BitVectorSlice(data).SortFrom(c)
+	Slice(data).SortFrom(c)
 	for _, bv := range data {
 		fmt.Println(bv, Hamming(bv, c))
 	}
