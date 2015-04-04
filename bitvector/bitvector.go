@@ -49,6 +49,8 @@ func (bv *BitVector) String() string {
 	return buf.String()
 }
 
+// Scan scans string and construct BitVector.  The allowed characters are
+// either '0', '1', or white space (' ').  Otherwise, it returns error.
 func Scan(s string) (*BitVector, error) {
 	bits := make([]bool, 0, len(s))
 	for _, c := range s {
@@ -72,6 +74,7 @@ func Scan(s string) (*BitVector, error) {
 	return bv, nil
 }
 
+// MustScan scans the string and panics if there is error.
 func MustScan(s string) *BitVector {
 	bv, err := Scan(s)
 	if err != nil {
@@ -80,6 +83,7 @@ func MustScan(s string) *BitVector {
 	return bv
 }
 
+// Uint64 returns the integer value of the first 64 bits.
 func (bv *BitVector) Uint64() uint64 {
 	if bv.size <= 8 {
 		return uint64(bv.bits[0])
@@ -96,7 +100,7 @@ func (bv *BitVector) ByteSize() int {
 	return (bv.size+7) >> 3
 }
 
-// experimental.
+// A slice of BitVector
 type BitVectorSlice []*BitVector
 
 func (s BitVectorSlice) Len() int {
@@ -116,6 +120,7 @@ func (s BitVectorSlice) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
+// Hamming calculates the hamming distance of two bit vectors.
 func Hamming(x, y *BitVector) int {
 	dist := 0
 
@@ -126,17 +131,20 @@ func Hamming(x, y *BitVector) int {
 	return dist
 }
 
+// ByHamming embeds BitVectorSlice and extends Less()
 type ByHamming struct {
 	BitVectorSlice
 	c *BitVector
 }
 
+// Less returns true if s[i] is closer to the center than s[j]
 func (s *ByHamming) Less(i, j int) bool {
 	dist_i := Hamming(s.c, s.BitVectorSlice[i])
 	dist_j := Hamming(s.c, s.BitVectorSlice[j])
 	return dist_i < dist_j
 }
 
+// SortFrom sorts s by the hamming distance from c
 func (s BitVectorSlice) SortFrom(c *BitVector) {
 	sorter := &ByHamming{s, c}
 	sort.Sort(sorter)
