@@ -56,6 +56,34 @@ func (a Angular) GetBitVector(vecs [][]float32, v []float32) *bitvector.BitVecto
 	return bv
 }
 
+type DistSort struct{
+	vecs [][]float32
+	cent []float32
+	dist Distance
+}
+
+func NewDistSort(vecs [][]float32, cent []float32, dist Distance) *DistSort{
+	return &DistSort{
+		vecs: vecs,
+		cent: cent,
+		dist: dist,
+	}
+}
+
+func (s *DistSort) Len() int {
+	return len(s.vecs)
+}
+
+func (s *DistSort) Less(i, j int) bool {
+	dist_i := s.dist.Distance(s.vecs[i], s.cent)
+	dist_j := s.dist.Distance(s.vecs[j], s.cent)
+	return dist_i < dist_j
+}
+
+func (s *DistSort) Swap(i, j int) {
+	s.vecs[i], s.vecs[j] = s.vecs[j], s.vecs[i]
+}
+
 // TODO: not implemented.
 type Euclidean struct{}
 

@@ -45,8 +45,9 @@ func NewIndexer(seed int64, bitsize int, vecsize int) *Indexer {
 		vector := make([]float32, vecsize, vecsize)
 		var sum float64 = 0
 		for j := 0; j < vecsize; j++ {
-			vector[j] = float32(idx.rng.NormFloat64())
-			sum += float64(vector[j]) * float64(vector[j])
+			val := idx.rng.NormFloat64()
+			vector[j] = float32(val)
+			sum += val * val
 		}
 		norm := float32(math.Sqrt(sum))
 		// normalize
