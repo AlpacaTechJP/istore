@@ -2,6 +2,7 @@ package lsh
 
 import (
 	"math"
+	"sort"
 
 	"github.com/AlpacaDB/istore/bitvector"
 )
@@ -82,6 +83,10 @@ func (s *DistSort) Less(i, j int) bool {
 
 func (s *DistSort) Swap(i, j int) {
 	s.vecs[i], s.vecs[j] = s.vecs[j], s.vecs[i]
+}
+
+func (s *DistSort) Sort() {
+	sort.Sort(s)
 }
 
 // TODO: not implemented.

@@ -56,7 +56,7 @@ func (idx *Indexer) Add(itemid uint64, vec []float32) {
 
 func (idx *Indexer) allocatePage() int {
 	n := len(idx.storage.pages)
-	idx.storage.pages = idx.storage.pages[0 : n+1]
+	idx.storage.pages = append(idx.storage.pages, Page{})
 	return n
 }
 
@@ -99,7 +99,6 @@ func (idx *Indexer) Search(vec []float32, limit int) []uint64 {
 		}
 	}
 
-	// TODO: sort and limit
 	return items
 }
 

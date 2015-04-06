@@ -30,6 +30,16 @@ func (r *RandomVectorGen) Next() []float32 {
 	return vector
 }
 
+func (r *RandomVectorGen) Generate(n int) [][]float32 {
+	list := [][]float32{}
+	for i := 0; i < n; i++ {
+		vector := r.Next()
+		list = append(list, vector)
+	}
+
+	return list
+}
+
 func (r *RandomVectorGen) GenerateCsv(n int, w io.Writer) (err error) {
 	writer := bufio.NewWriter(w)
 	for i := 0; i < n; i++ {
@@ -49,11 +59,7 @@ func (r *RandomVectorGen) GenerateCsv(n int, w io.Writer) (err error) {
 }
 
 func (r *RandomVectorGen) GenerateJson(n int, w io.Writer) (err error) {
-	list := [][]float32{}
-	for i := 0; i < n; i++ {
-		vector := r.Next()
-		list = append(list, vector)
-	}
+	list := r.Generate(n)
 	encoder := json.NewEncoder(w)
 	return encoder.Encode(list)
 }

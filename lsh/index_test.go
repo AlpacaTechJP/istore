@@ -2,7 +2,6 @@ package lsh
 
 import (
 	"fmt"
-	"sort"
 	"testing"
 
 	. "gopkg.in/check.v1"
@@ -13,6 +12,12 @@ func Test(t *testing.T) { TestingT(t) }
 type S struct{}
 
 var _ = Suite(&S{})
+
+func displayVecs(vecs [][]float32, cent []float32, dist Distance) {
+	for _, v := range vecs {
+		fmt.Printf("(%f,%f) -> %f\n", v[0], v[1], dist.Distance(v, cent))
+	}
+}
 
 func ExampleSort() {
 	data := [][]float32{
@@ -25,11 +30,8 @@ func ExampleSort() {
 
 	angular := Angular{}
 	cent := []float32{0.3, 0.3}
-	sort.Sort(NewDistSort(data, cent, angular))
-
-	for _, v := range data {
-		fmt.Printf("(%f,%f) -> %f\n", v[0], v[1], angular.Distance(v, cent))
-	}
+	NewDistSort(data, cent, angular).Sort()
+	displayVecs(data, cent, angular)
 
 	// Output:
 	// (0.500000,0.500000) -> -0.000000
@@ -39,22 +41,44 @@ func ExampleSort() {
 	// (-1.000000,-0.500000) -> 3.897367
 }
 
-//func (_ *S) TestIndex(c *C) {
-//	rng := rand.New(rand.NewSource(0))
-//	vecsize := 2
-//	data := make([][]float32)
-//	for i := 0; i < 1000; i++ {
-//		vector := make([]float32, vecsize, vecsize)
-//		var sum float64 = 0
-//		for j := 0; j < vecsize; j++ {
-//			val := rng.NormFloat64()
-//			vector[j] = float32(val)
-//			sum += val * val
-//		}
-//		norm := float32(math.Sqrt(sum))
-//		for j := 0; j < vecsize; j++ {
-//			vector[j] /= norm
-//		}
-//		data = append(data, vector)
-//	}
-//}
+func ExampleSearch() {
+	gen := NewRandomVectorGen(42, 2)
+	data := gen.Generate(1000)
+	index_data := make([][]float32, len(data), len(data))
+	copy(index_data, data)
+	cent := []float32{0.3, 0.3}
+	angular := Angular{}
+
+	index := NewIndexer(39, 8, 2)
+	for i, v := range index_data {
+		index.Add(uint64(i+1), v)
+	}
+	items := index.Search(cent, 5)
+	fmt.Println("Search: len(items) = ", len(items))
+
+	results := make([][]float32, len(items), len(items))
+	for i, itemid := range items {
+		results[i] = index_data[itemid-1]
+	}
+
+	NewDistSort(data, cent, angular).Sort()
+	displayVecs(data[:5], cent, angular)
+
+	fmt.Println("------")
+	NewDistSort(results, cent, angular).Sort()
+	displayVecs(results[:5], cent, angular)
+
+	// Output:
+	// Search: len(items) =  124
+	// (0.916952,0.914800) -> 0.000001
+	// (1.043253,1.029126) -> 0.000046
+	// (0.847707,0.861302) -> 0.000063
+	// (0.935449,0.970462) -> 0.000337
+	// (0.399547,0.384939) -> 0.000347
+	// ------
+	// (0.916952,0.914800) -> 0.000001
+	// (1.043253,1.029126) -> 0.000046
+	// (0.847707,0.861302) -> 0.000063
+	// (0.935449,0.970462) -> 0.000337
+	// (0.399547,0.384939) -> 0.000347
+}
