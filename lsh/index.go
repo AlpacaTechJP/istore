@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/AlpacaDB/istore/bitvector"
+	"math"
 	"sort"
 )
 
@@ -63,6 +64,11 @@ func (idx *Indexer) allocatePage() int {
 	return n
 }
 
+// mainly for debug and analysis
+func (idx *Indexer) GetBitVector(vec []float32) *bitvector.BitVector {
+	return idx.distance.GetBitVector(idx.hyperplane, vec)
+}
+
 // Search searches items close to the given vector up to the limit.
 // Currently this returns more than limits by looking at the bitvectors
 // with the same distance, without desired order.  The caller should
@@ -112,19 +118,32 @@ func (idx *Indexer) Search(vec []float32, limit int) []uint64 {
 func (idx *Indexer) Dump() string {
 	buffer := new(bytes.Buffer)
 
+	buffer.WriteString("hyperplane --- \n")
+	for i, h := range idx.hyperplane {
+		buffer.WriteString(fmt.Sprintf("%d: %v\n", i, h))
+	}
+
 	keys := make([]int, 0)
 	for k, _ := range idx.lookup {
 		keys = append(keys, int(k))
 	}
 	sort.Ints(keys)
 
+	var sum, squaresum float64
 	for _, k := range keys {
 		pageno := idx.lookup[uint32(k)]
 		page := &idx.storage.pages[pageno]
 		bv := bitvector.FromUint32(uint32(k), idx.bitsize)
+		nitems := page.CountItems()
 		buffer.WriteString(fmt.Sprintf("key(%08d:%s) -> page(%d) = %d items\n",
-			k, bv.String(), pageno, page.CountItems()))
+			k, bv.String(), pageno, nitems))
+
+		sum += float64(nitems)
+		squaresum += float64(nitems) * float64(nitems)
 	}
+	mean := sum / float64(len(keys))
+	stddev := math.Sqrt(squaresum/float64(len(keys)) - mean*mean)
+	buffer.WriteString(fmt.Sprintf("total items = %d / keys = %d, mean = %f, stddev = %f", int(sum), len(keys), mean, stddev))
 
 	return buffer.String()
 }

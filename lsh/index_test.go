@@ -44,14 +44,17 @@ func ExampleSort() {
 }
 
 func ExampleSearch() {
+	// seed = 42
 	gen := NewRandomVectorGen(42, 2)
 	data := gen.Generate(1000)
 	index_data := make([][]float32, len(data), len(data))
 	copy(index_data, data)
+
+	// Search from (0.3,0.3)
 	cent := []float32{0.3, 0.3}
 	angular := Angular{}
 
-	// TODO: bits between 4, 8 and 16 returns the same result??
+	// seed = 39, bitsize = 8
 	index := NewIndexer(39, 8, 2)
 	for i, v := range index_data {
 		index.Add(uint64(i+1), v)

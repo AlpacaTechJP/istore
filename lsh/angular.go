@@ -35,6 +35,7 @@ func (_ Angular) Distance(x, y []float32) float32 {
 }
 
 func (_ Angular) Side(x, y []float32) bool {
+	// return Angular{}.Distance(x, y) >= 0.5
 	// cos_theta = (x dot y) / (norm(x) * norm(y))
 	// the denominator does not contribute to the sign, so
 	// side = (x dot y) > 0
@@ -58,13 +59,13 @@ func (a Angular) GetBitVector(vecs [][]float32, v []float32) *bitvector.BitVecto
 	return bv
 }
 
-type DistSort struct{
+type DistSort struct {
 	vecs [][]float32
 	cent []float32
 	dist Distance
 }
 
-func NewDistSort(vecs [][]float32, cent []float32, dist Distance) *DistSort{
+func NewDistSort(vecs [][]float32, cent []float32, dist Distance) *DistSort {
 	return &DistSort{
 		vecs: vecs,
 		cent: cent,
