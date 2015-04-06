@@ -1,14 +1,10 @@
 package lsh
 
 import (
-	"math"
-	"math/rand"
-
 	"github.com/AlpacaDB/istore/bitvector"
 )
 
 type Indexer struct {
-	rng        *rand.Rand
 	seed       int64
 	bitsize    int
 	vecsize    int
@@ -30,7 +26,6 @@ func NewIndexer(seed int64, bitsize int, vecsize int) *Indexer {
 		panic("currently bitsize > 32 is not supported")
 	}
 	idx := &Indexer{
-		rng:      rand.New(rand.NewSource(seed)),
 		seed:     seed,
 		bitsize:  bitsize,
 		vecsize:  vecsize,
@@ -40,21 +35,10 @@ func NewIndexer(seed int64, bitsize int, vecsize int) *Indexer {
 	}
 
 	// init hyperplane
+	generator := NewRandomVectorGen(seed, vecsize)
 	idx.hyperplane = make([][]float32, bitsize, bitsize)
 	for i := 0; i < bitsize; i++ {
-		vector := make([]float32, vecsize, vecsize)
-		var sum float64 = 0
-		for j := 0; j < vecsize; j++ {
-			val := idx.rng.NormFloat64()
-			vector[j] = float32(val)
-			sum += val * val
-		}
-		norm := float32(math.Sqrt(sum))
-		// normalize
-		for j := 0; j < vecsize; j++ {
-			vector[j] /= norm
-		}
-		idx.hyperplane[i] = vector
+		idx.hyperplane[i] = generator.Next()
 	}
 
 	return idx
