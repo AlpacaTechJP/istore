@@ -1,7 +1,10 @@
 package lsh
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/AlpacaDB/istore/bitvector"
+	"sort"
 )
 
 type Indexer struct {
@@ -106,6 +109,26 @@ func (idx *Indexer) Search(vec []float32, limit int) []uint64 {
 	return items
 }
 
+func (idx *Indexer) Dump() string {
+	buffer := new(bytes.Buffer)
+
+	keys := make([]int, 0)
+	for k, _ := range idx.lookup {
+		keys = append(keys, int(k))
+	}
+	sort.Ints(keys)
+
+	for _, k := range keys {
+		pageno := idx.lookup[uint32(k)]
+		page := &idx.storage.pages[pageno]
+		bv := bitvector.FromUint32(uint32(k), idx.bitsize)
+		buffer.WriteString(fmt.Sprintf("key(%08d:%s) -> page(%d) = %d items\n",
+			k, bv.String(), pageno, page.CountItems()))
+	}
+
+	return buffer.String()
+}
+
 func (p *Page) Add(itemid uint64) {
 	itemlen := (*p)[0] + 1
 	(*p)[int(itemlen)] = itemid
@@ -118,4 +141,8 @@ func (p *Page) Get(n int) uint64 {
 		return 0
 	}
 	return (*p)[n+1]
+}
+
+func (p *Page) CountItems() int {
+	return int((*p)[0])
 }

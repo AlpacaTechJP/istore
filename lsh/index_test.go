@@ -56,6 +56,7 @@ func ExampleSearch() {
 	for i, v := range index_data {
 		index.Add(uint64(i+1), v)
 	}
+
 	items := index.Search(cent, 5)
 	fmt.Println("Search: len(items) = ", len(items))
 
