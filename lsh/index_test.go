@@ -49,6 +49,7 @@ func ExampleSearch() {
 	cent := []float32{0.3, 0.3}
 	angular := Angular{}
 
+	// TODO: bits between 4, 8 and 16 returns the same result??
 	index := NewIndexer(39, 8, 2)
 	for i, v := range index_data {
 		index.Add(uint64(i+1), v)

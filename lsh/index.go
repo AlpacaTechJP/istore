@@ -61,6 +61,10 @@ func (idx *Indexer) allocatePage() int {
 }
 
 // Search searches items close to the given vector up to the limit.
+// Currently this returns more than limits by looking at the bitvectors
+// with the same distance, without desired order.  The caller should
+// recall the vector and re-order by the metrics.  We will probably
+// want another interface that does this work.
 func (idx *Indexer) Search(vec []float32, limit int) []uint64 {
 	key := idx.distance.GetBitVector(idx.hyperplane, vec)
 
