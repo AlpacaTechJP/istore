@@ -14,6 +14,7 @@ type Distance interface {
 
 type Angular struct{}
 
+// Distance returns angular similarity with the range of [0, 1]
 func (_ Angular) Distance(x, y []float32) float32 {
 	if len(x) != len(y) {
 		panic("")
@@ -28,9 +29,9 @@ func (_ Angular) Distance(x, y []float32) float32 {
 
 	xxyy := xx * yy
 	if xxyy > 0 {
-		return float32(2.0 - 2.0*float64(xy)/math.Sqrt(float64(xxyy)))
+		return float32(0.5 - 0.5*float64(xy)/math.Sqrt(float64(xxyy)))
 	}
-	return 2.0 // cos is 0
+	return 0.5 // cos is 0
 }
 
 func (_ Angular) Side(x, y []float32) bool {
