@@ -58,35 +58,6 @@ func (idx *Indexer) Add(itemid uint64, vec []float32) {
 	idx.storage.Add(itemid, pageno)
 }
 
-// Add adds item to one of the pages and return the pageno that
-// the items belongs to.
-func (s *Storage) Add(itemid uint64, pageno int) int {
-	page := &s.pages[pageno]
-	next := page.Next()
-	for next != 0 {
-		page = &s.pages[next]
-		pageno = next
-		next = page.Next()
-	}
-
-	if page.Full() {
-		newpageno := s.allocatePage()
-		page.Link(newpageno)
-		page = &s.pages[newpageno]
-		pageno = newpageno
-	}
-
-	page.Add(itemid)
-
-	return pageno
-}
-
-func (s *Storage) allocatePage() int {
-	n := len(s.pages)
-	s.pages = append(s.pages, Page{})
-	return n
-}
-
 // mainly for debug and analysis
 func (idx *Indexer) GetBitVector(vec []float32) *bitvector.BitVector {
 	return idx.distance.GetBitVector(idx.hyperplane, vec)
@@ -122,16 +93,10 @@ func (idx *Indexer) Search(vec []float32, limit int) []uint64 {
 
 		// the key should exist
 		pageno := idx.lookup[thiskey.Uint32()]
-		page := &idx.storage.pages[pageno]
-		i := 0
-		for {
-			if page.Get(i) == 0 {
-				break
-			}
-			items = append(items, page.Get(i))
-			i++
-
-			// TODO: go to next page if it exceeds items in page
+		iter := idx.storage.pageIterator(pageno)
+		for iter.next() {
+			page := iter.page()
+			items = append(items, page.Gets()...)
 		}
 	}
 
@@ -155,9 +120,13 @@ func (idx *Indexer) Dump() string {
 	var sum, squaresum float64
 	for _, k := range keys {
 		pageno := idx.lookup[uint32(k)]
-		page := &idx.storage.pages[pageno]
 		bv := bitvector.FromUint32(uint32(k), idx.bitsize)
-		nitems := page.CountItems()
+		iter := idx.storage.pageIterator(pageno)
+		var nitems = 0
+		for iter.next() {
+			page := iter.page()
+			nitems += page.CountItems()
+		}
 		buffer.WriteString(fmt.Sprintf("key(%08d:%s) -> page(%d) = %d items\n",
 			k, bv.String(), pageno, nitems))
 
@@ -171,6 +140,71 @@ func (idx *Indexer) Dump() string {
 	return buffer.String()
 }
 
+// Add adds item to one of the pages and return the pageno that
+// the items belongs to.
+func (s *Storage) Add(itemid uint64, pageno int) int {
+	iter := s.pageIterator(pageno)
+	var page *Page
+	for iter.next() {
+		page = iter.page()
+		pageno = iter.pageno()
+	}
+
+	// Move to the new page if the current page is full.
+	if page.Full() {
+		newpageno := s.allocatePage()
+		page.Link(newpageno)
+		page = s.getPage(newpageno)
+		pageno = newpageno
+	}
+
+	page.Add(itemid)
+
+	return pageno
+}
+
+// pageno starts from 1
+func (s *Storage) getPage(pageno int) *Page {
+	return &s.pages[pageno-1]
+}
+
+// allocatePage appends new page at the end of array, and returns the page number of it.
+func (s *Storage) allocatePage() int {
+	n := len(s.pages)
+	s.pages = append(s.pages, Page{})
+	return n + 1
+}
+
+type pageIter struct {
+	storage        *Storage
+	currno, nextno int
+}
+
+func (s *Storage) pageIterator(pageno int) *pageIter {
+	return &pageIter{
+		storage: s,
+		nextno:  pageno,
+	}
+}
+
+func (iter *pageIter) next() bool {
+	if iter.nextno == 0 {
+		return false
+	} else {
+		iter.currno = iter.nextno
+		iter.nextno = iter.storage.getPage(iter.nextno).Next()
+		return true
+	}
+}
+
+func (iter *pageIter) page() *Page {
+	return iter.storage.getPage(iter.currno)
+}
+
+func (iter *pageIter) pageno() int {
+	return iter.currno
+}
+
 func (p *Page) Add(itemid uint64) {
 	itemlen := p.incrementItems()
 	(*p)[itemlen] = itemid
@@ -182,6 +216,11 @@ func (p *Page) Get(n int) uint64 {
 		return 0
 	}
 	return (*p)[n+1]
+}
+
+func (p *Page) Gets() []uint64 {
+	itemlen := p.CountItems()
+	return p[1:itemlen+1]
 }
 
 func (p *Page) CountItems() int {
@@ -205,5 +244,5 @@ func (p *Page) Link(next int) {
 
 func (p *Page) Full() bool {
 	// the first byte is for count/linkage
-	return p.CountItems() == len(*p) - 1
+	return p.CountItems() == len(*p)-1
 }

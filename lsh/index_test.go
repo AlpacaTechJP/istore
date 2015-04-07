@@ -99,7 +99,6 @@ func (_ *S) TestPage(c *C) {
 	c.Check(page.Full(), Equals, false)
 
 	for i := 0; i < 1022; i++ {
-		fmt.Println(i)
 		page.Add(uint64(i+2))
 	}
 
