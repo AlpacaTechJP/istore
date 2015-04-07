@@ -43,21 +43,6 @@ func ExampleSort() {
 	// (-0.700000,-0.700000) -> 1.000000
 }
 
-type TestItem struct {
-	itemid uint64
-	vector []float32
-}
-
-func (t *TestItem) Vector() []float32 {
-	return t.vector
-}
-
-type TestData [][]float32
-
-func (t TestData) Get(itemid uint64) Item {
-	return &TestItem{itemid, t[itemid-1]}
-}
-
 func ExampleSearch() {
 	// seed = 42
 	gen := NewRandomVectorGen(42, 2)
@@ -73,7 +58,7 @@ func ExampleSearch() {
 		index.Add(uint64(i+1), v)
 	}
 
-	items := index.Search(cent, 5, TestData(data))
+	items := index.Search(cent, 5, SimpleRecords(data))
 	results := make([][]float32, 0)
 	for _, item := range items {
 		results = append(results, item.Vector())
