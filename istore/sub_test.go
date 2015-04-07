@@ -1,10 +1,12 @@
 package istore
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	. "gopkg.in/check.v1"
@@ -21,30 +23,104 @@ func (_ *S) TestExtractTargetURL(c *C) {
 		Equals, "http://example.com/foo/bar.jpg")
 }
 
+type mockWriter struct {
+	status int
+	header http.Header
+	body   bytes.Buffer
+}
+
+func newMockWriter() *mockWriter {
+	return &mockWriter{
+		header: http.Header{},
+	}
+}
+
+func (w *mockWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *mockWriter) Write(b []byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	return w.body.Write(b)
+}
+
+func (w *mockWriter) WriteHeader(status int) {
+	w.status = status
+}
+
+func sendForm(method, url string, data url.Values) (*http.Request, error) {
+	r, err := http.NewRequest(method, url, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return r, nil
+}
+
 func (_ *S) TestPostItem(c *C) {
 	name, _ := ioutil.TempDir("", "istore")
 	server := NewServer(name)
-	addr := ":8592"
 
-	go http.ListenAndServe(addr, server)
+	putpost := func(method, path, metadata string, item *ItemMeta) (w *mockWriter, err error) {
+		location := "http://example.com" + path
+		formdata := url.Values{"metadata": {metadata}}
+		r, _ := sendForm(method, location, formdata)
+		w = newMockWriter()
+		server.ServeHTTP(w, r)
 
-	func() {
-		resp, _ := http.PostForm("http://" + addr + "/path/to/file://picts/foo.jpg",
-					url.Values{"metadata": {`{"name": "Bob", "user_id": 2159}`}})
+		err = json.Unmarshal(w.body.Bytes(), item)
+		return
+	}
 
-		c.Check(resp.StatusCode, Equals, http.StatusCreated)
-		decoder := json.NewDecoder(resp.Body)
-		meta := ItemMeta{}
-		err := decoder.Decode(&meta)
-		c.Check(err, Equals, nil)
-		c.Check(meta.ItemId, Equals, ItemId(1))
-		c.Check(meta.MetaData["name"], Equals, "Bob")
+	post := func (path, metadata string, item *ItemMeta) (w *mockWriter, err error) {
+		return putpost("POST", path, metadata, item)
+	}
 
-		resp.Body.Close()
-	}()
+	put := func(path, metadata string, item *ItemMeta) (w *mockWriter, err error) {
+		return putpost("PUT", path, metadata, item)
+	}
 
-	//func() {
-	//	//body := strings.New
-	//}
+	var mock *mockWriter
+	var meta ItemMeta
+
+	// initial create
+	meta = ItemMeta{}
+	mock, _ = post("/path/to/file:///picts/foo.jpg", `{"name": "Bob", "user_id": 2159}`, &meta)
+	c.Check(mock.status, Equals, http.StatusCreated)
+	c.Check(meta.ItemId, Equals, ItemId(1))
+	c.Check(meta.MetaData["name"], Equals, "Bob")
+
+	// should not bump up the id with the same path
+	meta = ItemMeta{}
+	mock, _ = post("/path/to/file:///picts/foo.jpg", `{"name": "Bob", "user_id": 9999}`, &meta)
+	c.Check(mock.status, Equals, http.StatusOK)
+	c.Check(meta.ItemId, Equals, ItemId(1))
+	c.Check(meta.MetaData["user_id"], Equals, 9999.0)
+
+	// create another object
+	meta = ItemMeta{}
+	mock, _ = post("/path/to/file:///picts/bar.jpg", `{"name": "Tom", "user_id": 1}`, &meta)
+	c.Check(mock.status, Equals, http.StatusCreated)
+	c.Check(meta.ItemId, Equals, ItemId(2))
+
+	// PUT overwrites the entire metadata
+	meta = ItemMeta{}
+	mock, _ = put("/path/to/file:///picts/foo.jpg", `{"I'm": "new"}`, &meta)
+	c.Check(mock.status, Equals, http.StatusOK)
+	c.Check(meta.MetaData["name"], Equals, nil)
+	c.Check(meta.ItemId, Equals, ItemId(1))
+	c.Check(meta.MetaData["I'm"], Equals, "new")
+
+	// GET (list)
+	mock = newMockWriter()
+	r, _ := http.NewRequest("GET", "http://example.com/path/to/", nil)
+	server.ServeHTTP(mock, r)
+	resplist := []interface{}{}
+	json.Unmarshal(mock.body.Bytes(), &resplist)
+	c.Check(mock.status, Equals, http.StatusOK)
+	c.Check(resplist[0].(map[string]interface{})["filepath"], Equals, "/path/to/file:///picts/bar.jpg")
+	c.Check(len(resplist), Equals, 2)
 
 }

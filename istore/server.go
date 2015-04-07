@@ -192,7 +192,12 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	if isnew{
+		w.WriteHeader(http.StatusCreated)
+	} else {
+		// TODO: really?
+		w.WriteHeader(http.StatusOK)
+	}
 	w.Write(metastr)
 }
 
