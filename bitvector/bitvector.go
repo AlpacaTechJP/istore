@@ -121,13 +121,13 @@ func (bv *BitVector) ByteSize() int {
 }
 
 // A slice of BitVector
-type Slice []*BitVector
+type Sort []*BitVector
 
-func (s Slice) Len() int {
+func (s Sort) Len() int {
 	return len(s)
 }
 
-func (s Slice) Less(i, j int) bool {
+func (s Sort) Less(i, j int) bool {
 	for x := 0; x < s[i].ByteSize(); x++ {
 		if s[i].bits[x] != s[j].bits[x] {
 			return s[i].bits[x] < s[j].bits[x]
@@ -136,7 +136,7 @@ func (s Slice) Less(i, j int) bool {
 	return false
 }
 
-func (s Slice) Swap(i, j int) {
+func (s Sort) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
@@ -151,21 +151,21 @@ func Hamming(x, y *BitVector) int {
 	return dist
 }
 
-// ByHamming embeds Slice and extends Less()
+// ByHamming embeds Sort and extends Less()
 type ByHamming struct {
-	Slice
+	Sort
 	c *BitVector
 }
 
 // Less returns true if s[i] is closer to the center than s[j]
 func (s *ByHamming) Less(i, j int) bool {
-	dist_i := Hamming(s.c, s.Slice[i])
-	dist_j := Hamming(s.c, s.Slice[j])
+	dist_i := Hamming(s.c, s.Sort[i])
+	dist_j := Hamming(s.c, s.Sort[j])
 	return dist_i < dist_j
 }
 
 // SortFrom sorts s by the hamming distance from c
-func (s Slice) SortFrom(c *BitVector) {
+func (s Sort) From(c *BitVector) {
 	sorter := &ByHamming{s, c}
 	sort.Sort(sorter)
 }
