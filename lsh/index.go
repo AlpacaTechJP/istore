@@ -127,12 +127,14 @@ func (idx *Indexer) Dump() string {
 		bv := bitvector.FromUint32(uint32(k), idx.bitsize)
 		iter := idx.storage.pageIterator(pageno)
 		var nitems = 0
+		pagenolist := []int{}
 		for iter.next() {
 			page := iter.page()
 			nitems += page.CountItems()
+			pagenolist = append(pagenolist, iter.pageno())
 		}
-		buffer.WriteString(fmt.Sprintf("key(%08d:%s) -> page(%d) = %d items\n",
-			k, bv.String(), pageno, nitems))
+		buffer.WriteString(fmt.Sprintf("key(%08d:%s) -> page(%v) = %d items\n",
+			k, bv.String(), pagenolist, nitems))
 
 		sum += float64(nitems)
 		squaresum += float64(nitems) * float64(nitems)
