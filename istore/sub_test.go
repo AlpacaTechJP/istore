@@ -113,14 +113,26 @@ func (_ *S) TestPostItem(c *C) {
 	c.Check(meta.ItemId, Equals, ItemId(1))
 	c.Check(meta.MetaData["I'm"], Equals, "new")
 
+	var r *http.Request
 	// GET (list)
 	mock = newMockWriter()
-	r, _ := http.NewRequest("GET", "http://example.com/path/to/", nil)
+	r, _ = http.NewRequest("GET", "http://example.com/path/to/", nil)
 	server.ServeHTTP(mock, r)
 	resplist := []interface{}{}
 	json.Unmarshal(mock.body.Bytes(), &resplist)
 	c.Check(mock.status, Equals, http.StatusOK)
-	c.Check(resplist[0].(map[string]interface{})["filepath"], Equals, "/path/to/file:///picts/bar.jpg")
+	c.Check(resplist[0].(map[string]interface{})["_filepath"], Equals, "/path/to/file:///picts/bar.jpg")
 	c.Check(len(resplist), Equals, 2)
 
+	// DELETE -> OK
+	mock = newMockWriter()
+	r, _ = http.NewRequest("DELETE", "http://example.com/path/to/file:///picts/bar.jpg", nil)
+	server.ServeHTTP(mock, r)
+	c.Check(mock.status, Equals, http.StatusOK)
+
+	// DELETE -> Not Found
+	mock = newMockWriter()
+	r, _ = http.NewRequest("DELETE", "http://example.com/path/to/file:///picts/bar.jpg", nil)
+	server.ServeHTTP(mock, r)
+	c.Check(mock.status, Equals, http.NotFound)
 }

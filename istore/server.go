@@ -1,7 +1,6 @@
 package istore
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -95,6 +94,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST", "PUT":
 		s.ServePost(w, r)
+	case "DELETE":
+		s.ServeDelete(w, r)
 	case "GET", "HEAD":
 		s.ServeGet(w, r)
 	default:
@@ -201,22 +202,34 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 	w.Write(metastr)
 }
 
+func (s *Server) ServeDelete(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+
+	err := s.Db.Delete([]byte(path), nil)
+
+	if err == leveldb.ErrNotFound {
+		http.NotFound(w, r)
+		return
+	}
+	// TODO: delete ItemId -> path
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (s *Server) ServeList(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	iter := s.Db.NewIterator(levelutil.BytesPrefix([]byte(path)), nil)
 	results := []interface{}{}
 	for iter.Next() {
 		result := map[string]interface{}{}
-		result["filepath"] = string(iter.Key())
+		result["_filepath"] = string(iter.Key())
 
-		var metadata interface{}
 		value := iter.Value()
 		if value != nil {
-			reader := bytes.NewReader(value)
-			decoder := json.NewDecoder(reader)
-			decoder.Decode(&metadata)
+			if err := json.Unmarshal(value, &result); err != nil {
+				glog.Error("failed to unmarshal metadata from db", err)
+			}
 		}
-		result["metadata"] = metadata
 		results = append(results, result)
 	}
 	iter.Release()
