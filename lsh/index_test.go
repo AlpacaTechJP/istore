@@ -109,7 +109,7 @@ func (_ *S) TestPage(c *C) {
 	c.Check(page.Full(), Equals, false)
 
 	for i := 0; i < len(page.items)-1; i++ {
-		page.Add(uint64(i+2))
+		page.Add(uint64(i + 2))
 	}
 
 	c.Check(page.CountItems(), Equals, len(page.items))

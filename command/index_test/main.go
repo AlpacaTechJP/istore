@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/AlpacaDB/istore/lsh"
 )
@@ -28,12 +29,14 @@ func main() {
 	data := readData()
 	ndim := len(data[0])
 
+	t0 := time.Now()
 	index := lsh.NewIndexer(*seed, *bitsize, ndim)
 	for i, v := range data {
 		index.Add(uint64(i+1), v)
 	}
+	fmt.Printf("index build in %s\n", time.Since(t0))
 
-	fmt.Println(index.Dump())
+	fmt.Println(index.Stats().Dump())
 
 	if len(flag.Args()) > 0 {
 		for _, arg := range flag.Args() {
@@ -47,10 +50,12 @@ func main() {
 			}
 
 			bv := index.GetBitVector(vec)
+			t1 := time.Now()
 			candidates := index.Candidates(vec, *limit)
-			fmt.Println(fmt.Sprintf("Search: %v (bits=%d:%v), len(candidates) = %d", vec, bv.Uint32(), bv, len(candidates)))
 
 			results := index.Qualify(vec, *limit, lsh.SimpleRecords(data), candidates)
+			fmt.Printf("Search in %s\n", time.Since(t1))
+			fmt.Printf("%v (bits=%d:%v), len(candidates) = %d\n", vec, bv.Uint32(), bv, len(candidates))
 			distance := lsh.Angular{}
 			for _, v := range results {
 				fmt.Printf("%v -> %f\n", v.Vector(), distance.Distance(vec, v.Vector()))

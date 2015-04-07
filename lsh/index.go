@@ -1,11 +1,9 @@
 package lsh
 
 import (
-	"bytes"
-	"fmt"
-	"github.com/AlpacaDB/istore/bitvector"
-	"math"
 	"sort"
+
+	"github.com/AlpacaDB/istore/bitvector"
 )
 
 type Indexer struct {
@@ -123,7 +121,7 @@ func (s itemSort) From(cent []float32, dist Distance) {
 	sort.Sort(&itemSortFrom{s, cent, dist})
 }
 
-type SimpleRecord struct{
+type SimpleRecord struct {
 	itemid uint64
 	vector []float32
 }
@@ -163,43 +161,4 @@ func (idx *Indexer) Qualify(vec []float32, limit int, getter ItemGetter, candida
 func (idx *Indexer) Search(vec []float32, limit int, getter ItemGetter) []Item {
 	candidates := idx.Candidates(vec, limit)
 	return idx.Qualify(vec, limit, getter, candidates)
-}
-
-func (idx *Indexer) Dump() string {
-	buffer := new(bytes.Buffer)
-
-	buffer.WriteString("hyperplane --- \n")
-	for i, h := range idx.hyperplane {
-		buffer.WriteString(fmt.Sprintf("%d: %v\n", i, h))
-	}
-
-	keys := make([]int, 0)
-	for k, _ := range idx.lookup {
-		keys = append(keys, int(k))
-	}
-	sort.Ints(keys)
-
-	var sum, squaresum float64
-	for _, k := range keys {
-		pageno := idx.lookup[uint32(k)]
-		bv := bitvector.FromUint32(uint32(k), idx.bitsize)
-		iter := idx.storage.pageIterator(pageno)
-		var nitems = 0
-		pagenolist := []int{}
-		for iter.next() {
-			page := iter.page()
-			nitems += page.CountItems()
-			pagenolist = append(pagenolist, iter.pageno())
-		}
-		buffer.WriteString(fmt.Sprintf("key(%08d:%s) -> page(%v) = %d items\n",
-			k, bv.String(), pagenolist, nitems))
-
-		sum += float64(nitems)
-		squaresum += float64(nitems) * float64(nitems)
-	}
-	mean := sum / float64(len(keys))
-	stddev := math.Sqrt(squaresum/float64(len(keys)) - mean*mean)
-	buffer.WriteString(fmt.Sprintf("total items = %d / keys = %d, mean = %f, stddev = %f", int(sum), len(keys), mean, stddev))
-
-	return buffer.String()
 }
