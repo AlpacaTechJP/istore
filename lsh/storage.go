@@ -46,6 +46,13 @@ func (s *Storage) allocatePage() int {
 	return n
 }
 
+// pageIter is an iterator over multiple pages that are linked.
+// Use this way:
+// 	iter := storage.pageIterator()
+// 	for iter.next() {
+// 		page := iter.page()
+// 		fmt.Println(page.CountItems())
+// 	}
 type pageIter struct {
 	storage        *Storage
 	currno, nextno int
@@ -80,33 +87,40 @@ func (iter *pageIter) pageno() int {
 	return iter.currno
 }
 
+// Init initializes the page.
 func (p *Page) Init() {
 	p.Link(-1)
 }
 
+// Add adds an item to this page.
 func (p *Page) Add(itemid uint64) {
 	itemlen := p.nitems
 	p.items[itemlen] = itemid
 	p.nitems++
 }
 
+// Gets returns a slice of items that are in the page.
 func (p *Page) Gets() []uint64 {
 	itemlen := p.nitems
 	return p.items[:itemlen]
 }
 
+// CountItems returns the number of items currently in the page.
 func (p *Page) CountItems() int {
 	return int(p.nitems)
 }
 
+// Next returns the next page number.
 func (p *Page) Next() int {
 	return int(p.link)
 }
 
+// Link remembers next page number.
 func (p *Page) Link(next int) {
 	p.link = int32(next)
 }
 
+// Full returns true if the page is full.
 func (p *Page) Full() bool {
 	// the first byte is for count and the second for linkage
 	return p.nitems == int32(len(p.items))

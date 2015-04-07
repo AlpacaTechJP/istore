@@ -56,12 +56,11 @@ func (idx *Indexer) GetBitVector(vec []float32) *bitvector.BitVector {
 	return idx.distance.GetBitVector(idx.hyperplane, vec)
 }
 
-// Search searches items close to the given vector up to the limit.
-// Currently this returns more than limits by looking at the bitvectors
+// Candidates searches items close to the given vector, roughly up to limit.
+// This returns more than limits by looking at the bitvectors
 // with the same distance, without desired order.  The caller should
-// recall the vector and re-order by the metrics.  We will probably
-// want another interface that does this work.
-func (idx *Indexer) Search(vec []float32, limit int) []uint64 {
+// recall the vector and re-order by the metrics.
+func (idx *Indexer) Candidates(vec []float32, limit int) []uint64 {
 	key := idx.distance.GetBitVector(idx.hyperplane, vec)
 
 	lkeys := make([]*bitvector.BitVector, 0, len(idx.lookup))
@@ -94,6 +93,76 @@ func (idx *Indexer) Search(vec []float32, limit int) []uint64 {
 	}
 
 	return items
+}
+
+type Item interface {
+	Vector() []float32
+}
+
+type ItemGetter interface {
+	Get(itemid uint64) Item
+}
+
+type itemSort []Item
+
+func (s itemSort) Len() int {
+	return len(s)
+}
+
+func (s itemSort) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+type itemSortFrom struct {
+	itemSort
+	cent []float32
+	dist Distance
+}
+
+func (s itemSort) From(cent []float32, dist Distance) {
+	sort.Sort(&itemSortFrom{s, cent, dist})
+}
+
+type SimpleRecord struct{
+	itemid uint64
+	vector []float32
+}
+
+// Vector implements Item.Vector()
+func (r *SimpleRecord) Vector() []float32 {
+	return r.vector
+}
+
+type SimpleRecords [][]float32
+
+// Get implements ItemGetter.Get()
+func (r SimpleRecords) Get(itemid uint64) Item {
+	return &SimpleRecord{itemid, r[itemid-1]}
+}
+
+func (s *itemSortFrom) Less(i, j int) bool {
+	dist_i := s.dist.Distance(s.itemSort[i].Vector(), s.cent)
+	dist_j := s.dist.Distance(s.itemSort[j].Vector(), s.cent)
+	return dist_i < dist_j
+}
+
+func (idx *Indexer) Qualify(vec []float32, limit int, getter ItemGetter, candidates []uint64) []Item {
+	if len(candidates) < limit {
+		limit = len(candidates)
+	}
+	items := make([]Item, 0, len(candidates))
+	for _, itemid := range candidates {
+		items = append(items, getter.Get(itemid))
+	}
+
+	itemSort(items).From(vec, idx.distance)
+
+	return items[:limit]
+}
+
+func (idx *Indexer) Search(vec []float32, limit int, getter ItemGetter) []Item {
+	candidates := idx.Candidates(vec, limit)
+	return idx.Qualify(vec, limit, getter, candidates)
 }
 
 func (idx *Indexer) Dump() string {

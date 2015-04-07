@@ -43,12 +43,25 @@ func ExampleSort() {
 	// (-0.700000,-0.700000) -> 1.000000
 }
 
+type TestItem struct {
+	itemid uint64
+	vector []float32
+}
+
+func (t *TestItem) Vector() []float32 {
+	return t.vector
+}
+
+type TestData [][]float32
+
+func (t TestData) Get(itemid uint64) Item {
+	return &TestItem{itemid, t[itemid-1]}
+}
+
 func ExampleSearch() {
 	// seed = 42
 	gen := NewRandomVectorGen(42, 2)
 	data := gen.Generate(1000)
-	index_data := make([][]float32, len(data), len(data))
-	copy(index_data, data)
 
 	// Search from (0.3,0.3)
 	cent := []float32{0.3, 0.3}
@@ -56,27 +69,23 @@ func ExampleSearch() {
 
 	// seed = 39, bitsize = 8
 	index := NewIndexer(39, 8, 2)
-	for i, v := range index_data {
+	for i, v := range data {
 		index.Add(uint64(i+1), v)
 	}
 
-	items := index.Search(cent, 5)
-	fmt.Println("Search: len(items) = ", len(items))
-
-	results := make([][]float32, len(items), len(items))
-	for i, itemid := range items {
-		results[i] = index_data[itemid-1]
+	items := index.Search(cent, 5, TestData(data))
+	results := make([][]float32, 0)
+	for _, item := range items {
+		results = append(results, item.Vector())
 	}
 
 	NewDistSort(data, cent, angular).Sort()
 	displayVecs(data[:5], cent, angular)
 
 	fmt.Println("------")
-	NewDistSort(results, cent, angular).Sort()
 	displayVecs(results[:5], cent, angular)
 
 	// Output:
-	// Search: len(items) =  124
 	// (0.916952,0.914800) -> 0.000000
 	// (1.043253,1.029126) -> 0.000012
 	// (0.847707,0.861302) -> 0.000016

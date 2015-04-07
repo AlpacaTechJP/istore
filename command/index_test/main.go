@@ -25,7 +25,6 @@ func main() {
 	var bitsize = flag.Int("bitsize", 8, "bitsize")
 	var limit = flag.Int("limit", 5, "limit")
 	flag.Parse()
-	//cent := []float32{0.3, 0.3}
 	data := readData()
 	ndim := len(data[0])
 
@@ -48,19 +47,13 @@ func main() {
 			}
 
 			bv := index.GetBitVector(vec)
-			candidates := index.Search(vec, *limit)
+			candidates := index.Candidates(vec, *limit)
 			fmt.Println(fmt.Sprintf("Search: %v (bits=%d:%v), len(candidates) = %d", vec, bv.Uint32(), bv, len(candidates)))
-			results := [][]float32{}
-			for _, itemid := range candidates {
-				results = append(results, data[itemid-1])
-			}
 
-			cdata := make([][]float32, len(data))
-			copy(cdata, data)
-			angular := lsh.Angular{}
-			lsh.NewDistSort(cdata, vec, angular).Sort()
-			for _, v := range cdata[:*limit] {
-				fmt.Printf("%v -> %f\n", v, angular.Distance(vec, v))
+			results := index.Qualify(vec, *limit, lsh.SimpleRecords(data), candidates)
+			distance := lsh.Angular{}
+			for _, v := range results {
+				fmt.Printf("%v -> %f\n", v.Vector(), distance.Distance(vec, v.Vector()))
 			}
 		}
 	}
