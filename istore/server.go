@@ -128,17 +128,6 @@ func (s *Server) NextItemId() ItemId {
 func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
 
-	// read user input metadata
-	value := r.FormValue("metadata")
-	usermeta := map[string]interface{}{}
-	if value != "" {
-		if err := json.Unmarshal([]byte(value), &usermeta); err != nil {
-			glog.Error(err)
-			http.Error(w, "Error", http.StatusBadRequest)
-			return
-		}
-	}
-
 	meta := ItemMeta{}
 	// fetch item from db if exists
 	if data, err := s.Db.Get([]byte(key), nil); err == nil {
@@ -148,9 +137,26 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// allocate id if it's new
 	isnew := meta.ItemId == 0
 	if isnew {
 		meta.ItemId = s.NextItemId()
+	}
+
+	// read user input metadata
+	value := r.FormValue("metadata")
+	usermeta := map[string]interface{}{}
+	if value != "" {
+		// PUT completely replaces metadata, whereas POST overwrites to
+		// the existing object.
+		if r.Method == "POST" && !isnew && meta.MetaData != nil {
+			usermeta = meta.MetaData
+		}
+		if err := json.Unmarshal([]byte(value), &usermeta); err != nil {
+			glog.Error(err)
+			http.Error(w, "Error", http.StatusBadRequest)
+			return
+		}
 	}
 
 	meta.MetaData = usermeta
