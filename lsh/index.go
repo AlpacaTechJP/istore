@@ -23,7 +23,11 @@ type Storage struct {
 	pages []Page
 }
 
-type Page [1024]uint64
+type Page struct {
+	nitems int32
+	link   int32
+	items  [1023]uint64
+}
 
 func NewIndexer(seed int64, bitsize int, vecsize int) *Indexer {
 	if bitsize > 32 {
@@ -163,16 +167,16 @@ func (s *Storage) Add(itemid uint64, pageno int) int {
 	return pageno
 }
 
-// pageno starts from 1
 func (s *Storage) getPage(pageno int) *Page {
-	return &s.pages[pageno-1]
+	return &s.pages[pageno]
 }
 
 // allocatePage appends new page at the end of array, and returns the page number of it.
 func (s *Storage) allocatePage() int {
 	n := len(s.pages)
 	s.pages = append(s.pages, Page{})
-	return n + 1
+	s.pages[n].Init()
+	return n
 }
 
 type pageIter struct {
@@ -183,14 +187,18 @@ type pageIter struct {
 func (s *Storage) pageIterator(pageno int) *pageIter {
 	return &pageIter{
 		storage: s,
+		currno:  -1,
 		nextno:  pageno,
 	}
 }
 
 func (iter *pageIter) next() bool {
-	if iter.nextno == 0 {
+	if iter.nextno == -1 {
 		return false
 	} else {
+		if iter.nextno >= len(iter.storage.pages) {
+			panic(iter.nextno)
+		}
 		iter.currno = iter.nextno
 		iter.nextno = iter.storage.getPage(iter.nextno).Next()
 		return true
@@ -205,44 +213,34 @@ func (iter *pageIter) pageno() int {
 	return iter.currno
 }
 
-func (p *Page) Add(itemid uint64) {
-	itemlen := p.incrementItems()
-	(*p)[itemlen] = itemid
+func (p *Page) Init() {
+	p.Link(-1)
 }
 
-func (p *Page) Get(n int) uint64 {
-	itemlen := (*p)[0]
-	if int(itemlen) <= n {
-		return 0
-	}
-	return (*p)[n+1]
+func (p *Page) Add(itemid uint64) {
+	itemlen := p.nitems
+	p.items[itemlen] = itemid
+	p.nitems++
 }
 
 func (p *Page) Gets() []uint64 {
-	itemlen := p.CountItems()
-	return p[1:itemlen+1]
+	itemlen := p.nitems
+	return p.items[:itemlen]
 }
 
 func (p *Page) CountItems() int {
-	return int((*p)[0] & 0xffffffff)
-}
-
-func (p *Page) incrementItems() int {
-	itemlen := p.CountItems() + 1
-	(*p)[0] = ((*p)[0] & 0xffffffff00000000) | (uint64(itemlen) & 0xffffffff)
-	return itemlen
-
+	return int(p.nitems)
 }
 
 func (p *Page) Next() int {
-	return int((*p)[0] >> 32)
+	return int(p.link)
 }
 
 func (p *Page) Link(next int) {
-	(*p)[0] |= (uint64(next) << 32)
+	p.link = int32(next)
 }
 
 func (p *Page) Full() bool {
-	// the first byte is for count/linkage
-	return p.CountItems() == len(*p)-1
+	// the first byte is for count and the second for linkage
+	return p.nitems == int32(len(p.items))
 }

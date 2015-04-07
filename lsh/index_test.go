@@ -92,16 +92,17 @@ func ExampleSearch() {
 
 func (_ *S) TestPage(c *C) {
 	page := &Page{}
+	page.Init()
 
 	c.Check(page.CountItems(), Equals, 0)
 	page.Add(1)
 	c.Check(page.CountItems(), Equals, 1)
 	c.Check(page.Full(), Equals, false)
 
-	for i := 0; i < 1022; i++ {
+	for i := 0; i < len(page.items)-1; i++ {
 		page.Add(uint64(i+2))
 	}
 
-	c.Check(page.CountItems(), Equals, 1023)
+	c.Check(page.CountItems(), Equals, len(page.items))
 	c.Check(page.Full(), Equals, true)
 }
