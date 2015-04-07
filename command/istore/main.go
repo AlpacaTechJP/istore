@@ -8,10 +8,12 @@ import(
 	"github.com/AlpacaDB/istore/istore"
 )
 
+const _DbFile = "/tmp/metadb"
+
 func main() {
 	flag.Parse()
 	addr := ":8592"
-	handler := istore.NewServer()
+	handler := istore.NewServer(_DbFile)
 	glog.Infof("Listening on %v", addr)
 	err := http.ListenAndServe(addr, handler)
 	if err != nil {

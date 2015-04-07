@@ -17,8 +17,6 @@ import (
 	levelutil "github.com/syndtr/goleveldb/leveldb/util"
 )
 
-const _DbFile = "/tmp/metadb"
-
 const _PathIdSeq = "sys.seq"
 const _PathSeqNS = "sys.ns.seq"
 
@@ -69,11 +67,11 @@ func extractTargetURL(path string) string {
 	return ""
 }
 
-func NewServer() *Server {
+func NewServer(dbfile string) *Server {
 	cache := httpcache.NewMemoryCache()
 	client := &http.Client{}
 	client.Transport = httpcache.NewTransport(cache)
-	db, err := leveldb.OpenFile(_DbFile, nil)
+	db, err := leveldb.OpenFile(dbfile, nil)
 	if err != nil {
 		glog.Error(err)
 	}
