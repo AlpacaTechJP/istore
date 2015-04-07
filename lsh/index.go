@@ -52,15 +52,38 @@ func (idx *Indexer) Add(itemid uint64, vec []float32) {
 	key := idx.distance.GetBitVector(idx.hyperplane, vec)
 	pageno, ok := idx.lookup[key.Uint32()]
 	if !ok {
-		pageno = idx.allocatePage()
+		pageno = idx.storage.allocatePage()
 		idx.lookup[key.Uint32()] = pageno
 	}
-	idx.storage.pages[pageno].Add(itemid)
+	idx.storage.Add(itemid, pageno)
 }
 
-func (idx *Indexer) allocatePage() int {
-	n := len(idx.storage.pages)
-	idx.storage.pages = append(idx.storage.pages, Page{})
+// Add adds item to one of the pages and return the pageno that
+// the items belongs to.
+func (s *Storage) Add(itemid uint64, pageno int) int {
+	page := &s.pages[pageno]
+	next := page.Next()
+	for next != 0 {
+		page = &s.pages[next]
+		pageno = next
+		next = page.Next()
+	}
+
+	if page.Full() {
+		newpageno := s.allocatePage()
+		page.Link(newpageno)
+		page = &s.pages[newpageno]
+		pageno = newpageno
+	}
+
+	page.Add(itemid)
+
+	return pageno
+}
+
+func (s *Storage) allocatePage() int {
+	n := len(s.pages)
+	s.pages = append(s.pages, Page{})
 	return n
 }
 
@@ -149,9 +172,8 @@ func (idx *Indexer) Dump() string {
 }
 
 func (p *Page) Add(itemid uint64) {
-	itemlen := (*p)[0] + 1
-	(*p)[int(itemlen)] = itemid
-	(*p)[0] = itemlen
+	itemlen := p.incrementItems()
+	(*p)[itemlen] = itemid
 }
 
 func (p *Page) Get(n int) uint64 {
@@ -163,5 +185,25 @@ func (p *Page) Get(n int) uint64 {
 }
 
 func (p *Page) CountItems() int {
-	return int((*p)[0])
+	return int((*p)[0] & 0xffffffff)
+}
+
+func (p *Page) incrementItems() int {
+	itemlen := p.CountItems() + 1
+	(*p)[0] = ((*p)[0] & 0xffffffff00000000) | (uint64(itemlen) & 0xffffffff)
+	return itemlen
+
+}
+
+func (p *Page) Next() int {
+	return int((*p)[0] >> 32)
+}
+
+func (p *Page) Link(next int) {
+	(*p)[0] |= (uint64(next) << 32)
+}
+
+func (p *Page) Full() bool {
+	// the first byte is for count/linkage
+	return p.CountItems() == len(*p) - 1
 }

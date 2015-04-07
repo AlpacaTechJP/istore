@@ -89,3 +89,20 @@ func ExampleSearch() {
 	// (0.935449,0.970462) -> 0.000084
 	// (0.399547,0.384939) -> 0.000087
 }
+
+func (_ *S) TestPage(c *C) {
+	page := &Page{}
+
+	c.Check(page.CountItems(), Equals, 0)
+	page.Add(1)
+	c.Check(page.CountItems(), Equals, 1)
+	c.Check(page.Full(), Equals, false)
+
+	for i := 0; i < 1022; i++ {
+		fmt.Println(i)
+		page.Add(uint64(i+2))
+	}
+
+	c.Check(page.CountItems(), Equals, 1023)
+	c.Check(page.Full(), Equals, true)
+}

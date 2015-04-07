@@ -40,7 +40,7 @@ func main() {
 		for _, arg := range flag.Args() {
 			vec := make([]float32, ndim, ndim)
 			elems := strings.Split(arg, ",")
-			for j := 0; j < ndim; j++ {
+			for j := 0; j < ndim && j < len(elems); j++ {
 				_, err := fmt.Sscanf(elems[j], "%f", &vec[j])
 				if err != nil {
 					fmt.Println(err)
