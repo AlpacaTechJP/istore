@@ -38,6 +38,7 @@ func (id ItemId) Key() []byte {
 
 type ItemMeta struct{
 	ItemId ItemId `json:"_id,omitempty"`
+	FilePath string `json:"_filepath,omitempty"`
 	MetaData map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -127,6 +128,11 @@ func (s *Server) NextItemId() ItemId {
 func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
 
+	if strings.HasSuffix(key, "/_search") {
+		s.PerformSearch(w, r)
+		return
+	}
+
 	meta := ItemMeta{}
 	// fetch item from db if exists
 	if data, err := s.Db.Get([]byte(key), nil); err == nil {
@@ -205,13 +211,23 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 func (s *Server) ServeDelete(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
-	err := s.Db.Delete([]byte(path), nil)
+	if strings.HasSuffix(path, "/") {
+		iter := s.Db.NewIterator(levelutil.BytesPrefix([]byte(path)), nil)
+		for iter.Next() {
+			if err := s.Db.Delete(iter.Key(), nil); err != nil {
+				glog.Error(err)
+				// keep going...
+			}
+		}
+	} else {
+		err := s.Db.Delete([]byte(path), nil)
 
-	if err == leveldb.ErrNotFound {
-		http.NotFound(w, r)
-		return
+		if err == leveldb.ErrNotFound {
+			http.NotFound(w, r)
+			return
+		}
+		// TODO: delete ItemId -> path
 	}
-	// TODO: delete ItemId -> path
 
 	w.WriteHeader(http.StatusOK)
 }

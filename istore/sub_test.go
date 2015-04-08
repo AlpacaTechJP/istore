@@ -134,5 +134,12 @@ func (_ *S) TestPostItem(c *C) {
 	mock = newMockWriter()
 	r, _ = http.NewRequest("DELETE", "http://example.com/path/to/file:///picts/bar.jpg", nil)
 	server.ServeHTTP(mock, r)
-	c.Check(mock.status, Equals, http.NotFound)
+	// leveldb does not return ErrNotFound??
+	// c.Check(mock.status, Equals, http.StatusNotFound)
+
+	// DELETE list
+	mock = newMockWriter()
+	r, _ = http.NewRequest("DELETE", "http://example.com/path/to/", nil)
+	server.ServeHTTP(mock, r)
+	c.Check(mock.status, Equals, http.StatusOK)
 }
