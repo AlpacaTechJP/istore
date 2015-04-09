@@ -88,3 +88,62 @@ func (stats *IndexStats) Dump() string {
 
 	return buffer.String()
 }
+
+type Encoder interface {
+	Encode(interface{}) error
+}
+
+type Decoder interface {
+	Decode(interface{}) error
+}
+
+func (idx *Indexer) Encode(enc Encoder) error {
+	// TODO: set version code
+	enc.Encode(idx.seed)
+	enc.Encode(idx.bitsize)
+	enc.Encode(idx.vecsize)
+	switch idx.distance.(type) {
+	case Angular:
+		enc.Encode("angular")
+	}
+	enc.Encode(idx.hyperplane)
+	enc.Encode(idx.lookup)
+
+	// TODO: a lot of optimization...
+	enc.Encode(len(idx.storage.pages))
+	for _, p := range idx.storage.pages {
+		enc.Encode(p.nitems)
+		enc.Encode(p.link)
+		enc.Encode(p.items)
+	}
+
+	return nil
+}
+
+func (idx *Indexer) Decode(dec Decoder) error {
+	dec.Decode(&idx.seed)
+	dec.Decode(&idx.bitsize)
+	dec.Decode(&idx.vecsize)
+	var distance string
+	dec.Decode(&distance)
+	switch distance {
+	case "angular":
+		idx.distance = Angular{}
+	}
+	dec.Decode(&idx.hyperplane)
+	dec.Decode(&idx.lookup)
+
+	var npages int
+	dec.Decode(&npages)
+	if idx.storage == nil {
+		idx.storage = &Storage{}
+	}
+	idx.storage.pages = make([]Page, npages, npages)
+	for i := 0; i < npages; i++ {
+		dec.Decode(&idx.storage.pages[i].nitems)
+		dec.Decode(&idx.storage.pages[i].link)
+		dec.Decode(&idx.storage.pages[i].items)
+	}
+
+	return nil
+}

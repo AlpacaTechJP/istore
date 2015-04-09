@@ -1,6 +1,8 @@
 package lsh
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"testing"
 
@@ -58,7 +60,15 @@ func ExampleSearch() {
 		index.Add(uint64(i+1), v)
 	}
 
-	items := index.Search(cent, 5, SimpleRecords(data))
+	// encode/decode
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+	index.Encode(encoder)
+	decoder := gob.NewDecoder(&buf)
+	index2 := new(Indexer)
+	index2.Decode(decoder)
+
+	items := index2.Search(cent, 5, SimpleRecords(data))
 	results := make([][]float32, 0)
 	for _, item := range items {
 		results = append(results, item.Vector())
@@ -68,7 +78,7 @@ func ExampleSearch() {
 	displayVecs(data[:5], cent, angular)
 
 	fmt.Println("------")
-	displayVecs(results[:5], cent, angular)
+	displayVecs(results, cent, angular)
 
 	// Output:
 	// (0.916952,0.914800) -> 0.000000

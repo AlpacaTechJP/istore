@@ -143,3 +143,9 @@ func (_ *S) TestPostItem(c *C) {
 	server.ServeHTTP(mock, r)
 	c.Check(mock.status, Equals, http.StatusOK)
 }
+
+func (_ *S) TestItemId(c *C) {
+	itemid := uint64(42)
+	b := ItemId(itemid).Bytes()
+	c.Check(ToItemId(b), Equals, ItemId(itemid))
+}

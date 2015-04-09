@@ -131,6 +131,9 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 	if strings.HasSuffix(key, "/_search") {
 		s.PerformSearch(w, r)
 		return
+	} else if strings.HasSuffix(key, "/_create_index") {
+		s.CreateIndex(w, r)
+		return
 	}
 
 	meta := ItemMeta{}
@@ -232,18 +235,23 @@ func (s *Server) ServeDelete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) ServeList(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
+func (s *Server) ServeList(w http.ResponseWriter, r *http.Request, path string) {
 	iter := s.Db.NewIterator(levelutil.BytesPrefix([]byte(path)), nil)
 	results := []interface{}{}
 	for iter.Next() {
 		result := map[string]interface{}{}
-		result["_filepath"] = string(iter.Key())
 
-		value := iter.Value()
-		if value != nil {
-			if err := json.Unmarshal(value, &result); err != nil {
-				glog.Error("failed to unmarshal metadata from db", err)
+		if path == _PathSeqNS {
+			result["_id"] = ToItemId(iter.Key()[len(_PathSeqNS):])
+			result["_filepath"] = string(iter.Value())
+		} else {
+			result["_filepath"] = string(iter.Key())
+
+			value := iter.Value()
+			if value != nil {
+				if err := json.Unmarshal(value, &result); err != nil {
+					glog.Error("failed to unmarshal metadata from db", err)
+				}
 			}
 		}
 		results = append(results, result)
@@ -267,7 +275,10 @@ func (s *Server) ServeGet(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
 	if strings.HasSuffix(path, "/") {
-		s.ServeList(w, r)
+		s.ServeList(w, r, path)
+		return
+	} else if path == "/" + _PathSeqNS {
+		s.ServeList(w, r, _PathSeqNS)
 		return
 	}
 
@@ -326,6 +337,8 @@ func (s *Server) ServeGet(w http.ResponseWriter, r *http.Request) {
 // 
 // curl -X POST http://localhost:9999/mybucket/events/19/_create_index -d '
 // {
-//   "by": "feature"
+//   "similar": {
+//     "by": "feature"
+//   }
 // }
 
