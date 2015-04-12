@@ -14,6 +14,7 @@ import (
 	"github.com/gregjones/httpcache"
 	"github.com/syndtr/goleveldb/leveldb"
 	levelutil "github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/tinylib/msgp/msgp"
 )
 
 const _PathIdSeq = "sys.seq"
@@ -37,9 +38,9 @@ func (id ItemId) Key() []byte {
 }
 
 type ItemMeta struct{
-	ItemId ItemId `json:"_id,omitempty"`
-	FilePath string `json:"_filepath,omitempty"`
-	MetaData map[string]interface{} `json:"metadata,omitempty"`
+	ItemId ItemId `json:"_id,omitempty" msgp:"_id,omitempty"`
+	FilePath string `json:"_filepath,omitempty" msgp:"_filepath,omitempty"`
+	MetaData map[string]interface{} `json:"metadata,omitempty" msgp:"metadata,omitempty"`
 }
 
 type Server struct {
@@ -169,7 +170,9 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 
 	meta.MetaData = usermeta
 
-	metastr, err := json.Marshal(&meta)
+	metabytes := []byte{}
+	metabytes, err := msgp.AppendIntf(metabytes, &meta)
+	//metastr, err := json.Marshal(&meta)
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, "Error", http.StatusInternalServerError)
@@ -178,7 +181,8 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 
 	batch := new(leveldb.Batch)
 	// User path -> metadata
-	batch.Put([]byte(key), []byte(metastr))
+	//batch.Put([]byte(key), []byte(metastr))
+	batch.Put([]byte(key), metabytes)
 
 	if isnew {
 		itemId := meta.ItemId
@@ -208,7 +212,8 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 		// TODO: really?
 		w.WriteHeader(http.StatusOK)
 	}
-	w.Write(metastr)
+	msgp.UnmarshalAsJSON(w, metabytes)
+	//w.Write(metastr)
 }
 
 func (s *Server) ServeDelete(w http.ResponseWriter, r *http.Request) {
@@ -249,8 +254,12 @@ func (s *Server) ServeList(w http.ResponseWriter, r *http.Request, path string) 
 
 			value := iter.Value()
 			if value != nil {
-				if err := json.Unmarshal(value, &result); err != nil {
+				if data, _, err := msgp.ReadIntfBytes(value); err != nil {
+				//if err := json.Unmarshal(value, &result); err != nil {
 					glog.Error("failed to unmarshal metadata from db", err)
+				} else if m, ok := data.(map[string]interface{}); ok {
+					result["_id"] = m["_id"]
+					result["metadata"] = m["metadata"]
 				}
 			}
 		}
