@@ -1,7 +1,6 @@
 package istore
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,33 +19,10 @@ import (
 const _PathIdSeq = "sys.seq"
 const _PathSeqNS = "sys.ns.seq"
 
-type ItemId uint64
-
-func (id ItemId) Bytes() []byte {
-	b := make([]byte, 8, 8)
-	binary.PutUvarint(b, uint64(id))
-	return b
-}
-
-func ToItemId(val []byte) ItemId {
-	id, _ := binary.Uvarint(val)
-	return ItemId(id)
-}
-
-func (id ItemId) Key() []byte {
-	return append([]byte(_PathSeqNS), id.Bytes()...)
-}
-
-type ItemMeta struct{
-	ItemId ItemId `json:"_id,omitempty" msgp:"_id,omitempty"`
-	FilePath string `json:"_filepath,omitempty" msgp:"_filepath,omitempty"`
-	MetaData map[string]interface{} `json:"metadata,omitempty" msgp:"metadata,omitempty"`
-}
-
 type Server struct {
-	Client  *http.Client
-	Cache   httpcache.Cache
-	Db      *leveldb.DB
+	Client    *http.Client
+	Cache     httpcache.Cache
+	Db        *leveldb.DB
 	idseq     ItemId
 	idseqLock sync.RWMutex
 }
@@ -120,7 +96,7 @@ func (s *Server) NextItemId() ItemId {
 		}
 		if has, err := s.Db.Has(val.Key(), nil); err != nil {
 			panic(err)
-		} else if !has{
+		} else if !has {
 			return val
 		}
 	}
@@ -140,8 +116,9 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 	meta := ItemMeta{}
 	// fetch item from db if exists
 	if data, err := s.Db.Get([]byte(key), nil); err == nil {
-		if err := json.Unmarshal(data, &meta); err != nil {
-			glog.Error("failed to parse json from db", err)
+		if _, err = meta.UnmarshalMsg(data); err != nil {
+			//if err := json.Unmarshal(data, &meta); err != nil {
+			glog.Error("failed to parse json from db ", err)
 			// continue anyway as new item
 		}
 	}
@@ -206,7 +183,7 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if isnew{
+	if isnew {
 		w.WriteHeader(http.StatusCreated)
 	} else {
 		// TODO: really?
@@ -255,8 +232,8 @@ func (s *Server) ServeList(w http.ResponseWriter, r *http.Request, path string) 
 			value := iter.Value()
 			if value != nil {
 				if data, _, err := msgp.ReadIntfBytes(value); err != nil {
-				//if err := json.Unmarshal(value, &result); err != nil {
-					glog.Error("failed to unmarshal metadata from db", err)
+					//if err := json.Unmarshal(value, &result); err != nil {
+					glog.Error("failed to unmarshal metadata from db ", err)
 				} else if m, ok := data.(map[string]interface{}); ok {
 					result["_id"] = m["_id"]
 					result["metadata"] = m["metadata"]
@@ -286,7 +263,7 @@ func (s *Server) ServeGet(w http.ResponseWriter, r *http.Request) {
 	if strings.HasSuffix(path, "/") {
 		s.ServeList(w, r, path)
 		return
-	} else if path == "/" + _PathSeqNS {
+	} else if path == "/"+_PathSeqNS {
 		s.ServeList(w, r, _PathSeqNS)
 		return
 	}
@@ -343,11 +320,10 @@ func (s *Server) ServeGet(w http.ResponseWriter, r *http.Request) {
 //     "by": "feature"
 //   }
 // }
-// 
+//
 // curl -X POST http://localhost:9999/mybucket/events/19/_create_index -d '
 // {
 //   "similar": {
 //     "by": "feature"
 //   }
 // }
-

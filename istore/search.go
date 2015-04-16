@@ -25,7 +25,7 @@ type Similarity struct {
 
 type Query struct {
 	Similar Similarity `json:"similar,omitempty"`
-	key string
+	key     string
 }
 
 func jsonArrayToFloat32(data interface{}) []float32 {
@@ -66,21 +66,21 @@ func convertJsonForQuery(value []byte, by string, item *ItemMeta) bool {
 
 type ItemGetter struct {
 	server *Server
-	query *Query
+	query  *Query
 }
 type ItemVector struct {
-	item ItemMeta
+	item  ItemMeta
 	query *Query
 }
 
-func (g *ItemGetter) Get(itemid uint64) lsh.Item{
+func (g *ItemGetter) Get(itemid uint64) lsh.Item {
 	if key, err := g.server.Db.Get(ItemId(itemid).Key(), nil); err == nil {
 		if data, err := g.server.Db.Get(key, nil); err == nil {
 			item := ItemMeta{}
 			item.FilePath = string(key)
 			convertJsonForQuery(data, g.query.Similar.By, &item)
 			return &ItemVector{
-				item: item,
+				item:  item,
 				query: g.query,
 			}
 		} else {
@@ -96,10 +96,10 @@ func (v *ItemVector) Vector() []float32 {
 	return v.item.MetaData[v.query.Similar.By].([]float32)
 }
 
-func (s *Server) PerformSearchIndex(query *Query, index *lsh.Indexer) []ItemMeta{
+func (s *Server) PerformSearchIndex(query *Query, index *lsh.Indexer) []ItemMeta {
 	itemGetter := &ItemGetter{
 		server: s,
-		query: query,
+		query:  query,
 	}
 	glog.Info(query.Similar.to)
 	glog.Info(query.Similar.to.MetaData)
@@ -186,7 +186,7 @@ func (s *Server) PerformSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var items []ItemMeta
-	if index_data, err := s.Db.Get([]byte(key + "_index"), nil); err == nil {
+	if index_data, err := s.Db.Get([]byte(key+"_index"), nil); err == nil {
 		index := new(lsh.Indexer)
 		decoder := gob.NewDecoder(bytes.NewBuffer(index_data))
 		index.Decode(decoder)
@@ -223,7 +223,7 @@ func (s *itemSort) Sort() {
 func (s *Server) CreateIndex(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
 	// suffix _create_index
-	key = key[0:len(key)-len("_create_index")]
+	key = key[0 : len(key)-len("_create_index")]
 
 	if !strings.HasSuffix(key, "/") {
 		http.Error(w, "create index key should finish with '/'", http.StatusBadRequest)
@@ -262,7 +262,7 @@ func (s *Server) CreateIndex(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
 	index.Encode(encoder)
-	if err := s.Db.Put([]byte(key + "_index"), buf.Bytes(), nil); err != nil {
+	if err := s.Db.Put([]byte(key+"_index"), buf.Bytes(), nil); err != nil {
 		glog.Error(err)
 		http.Error(w, "Error", http.StatusInternalServerError)
 		return
