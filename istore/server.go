@@ -221,26 +221,22 @@ func (s *Server) ServeList(w http.ResponseWriter, r *http.Request, path string) 
 	iter := s.Db.NewIterator(levelutil.BytesPrefix([]byte(path)), nil)
 	results := []interface{}{}
 	for iter.Next() {
-		result := map[string]interface{}{}
+		meta := ItemMeta{}
 
 		if path == _PathSeqNS {
-			result["_id"] = ToItemId(iter.Key()[len(_PathSeqNS):])
-			result["_filepath"] = string(iter.Value())
+			meta.ItemId = ToItemId(iter.Key()[len(_PathSeqNS):])
+			meta.FilePath = string(iter.Value())
 		} else {
-			result["_filepath"] = string(iter.Key())
-
 			value := iter.Value()
 			if value != nil {
-				if data, _, err := msgp.ReadIntfBytes(value); err != nil {
+				if _, err := meta.UnmarshalMsg(value); err != nil {
 					//if err := json.Unmarshal(value, &result); err != nil {
 					glog.Error("failed to unmarshal metadata from db ", err)
-				} else if m, ok := data.(map[string]interface{}); ok {
-					result["_id"] = m["_id"]
-					result["metadata"] = m["metadata"]
 				}
 			}
+			meta.FilePath = string(iter.Key())
 		}
-		results = append(results, result)
+		results = append(results, meta)
 	}
 	iter.Release()
 	err := iter.Error()
