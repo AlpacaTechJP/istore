@@ -1,11 +1,14 @@
 package istore
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -35,7 +38,7 @@ func copyHeader(w http.ResponseWriter, r *http.Response, header string) {
 }
 
 func extractTargetURL(path string) string {
-	r := regexp.MustCompile("^.+/([0-9a-z]+\\://.+)$")
+	r := regexp.MustCompile("^.+?/([0-9a-z]+\\://.+)$")
 	strs := r.FindStringSubmatch(path)
 
 	if len(strs) > 1 {
@@ -299,12 +302,45 @@ func (s *Server) ServeGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if resp, err = handleApply(resp, r); err != nil {
+		glog.Error(err)
+		http.Error(w, "Error", http.StatusInternalServerError)
+		return
+	}
 	copyHeader(w, resp, "Last-Modified")
 	copyHeader(w, resp, "Expires")
 	copyHeader(w, resp, "Etag")
 	copyHeader(w, resp, "Content-Length")
 	copyHeader(w, resp, "Content-Type")
 	io.Copy(w, resp.Body)
+}
+
+func handleApply(resp *http.Response, r *http.Request) (*http.Response, error) {
+	apply := r.FormValue("apply")
+
+	var img []byte
+	switch apply {
+	case "resize":
+		w, err := strconv.Atoi(r.FormValue("w"))
+		h, err := strconv.Atoi(r.FormValue("h"))
+		if w == 0 && h == 0 {
+			return resp, nil
+		}
+		if img, err = resize(resp.Body, w, h); err != nil {
+			return nil, err
+		}
+
+	default:
+		return resp, nil
+	}
+
+	buf := new(bytes.Buffer)
+	fmt.Fprintf(buf, "%s %s", resp.Proto, resp.Status)
+	resp.Header.WriteSubset(buf, map[string]bool{"Content-Length": true})
+	fmt.Fprintf(buf, "Content-Length: %d\n\n", len(img))
+	buf.Write(img)
+
+	return http.ReadResponse(bufio.NewReader(buf), r)
 }
 
 // -----
