@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/AlpacaDB/istore",
-	"GoVersion": "go1.3",
+	"GoVersion": "go1.4.2",
 	"Packages": [
 		"./..."
 	],
@@ -14,12 +14,20 @@
 			"Rev": "4fb00a8eec008ffa8ac9ec46a93684dcbb62fc09"
 		},
 		{
+			"ImportPath": "github.com/philhofer/fwd",
+			"Rev": "899e4efba8eaa1fea74175308f3fae18ff3319fa"
+		},
+		{
 			"ImportPath": "github.com/syndtr/goleveldb/leveldb",
 			"Rev": "87e4e645d80ae9c537e8f2dee52b28036a5dd75e"
 		},
 		{
 			"ImportPath": "github.com/syndtr/gosnappy/snappy",
 			"Rev": "156a073208e131d7d2e212cb749feae7c339e846"
+		},
+		{
+			"ImportPath": "github.com/tinylib/msgp/msgp",
+			"Rev": "75ee40d2601edf122ef667e2a07d600d4c44490c"
 		},
 		{
 			"ImportPath": "gopkg.in/check.v1",
