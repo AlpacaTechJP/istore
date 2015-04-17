@@ -23,7 +23,7 @@ const _PathIdSeq = "sys.seq"
 const _PathSeqNS = "sys.ns.seq"
 
 type Server struct {
-	Client    *http.Client
+	Client    *GetClient
 	Cache     httpcache.Cache
 	Db        *leveldb.DB
 	idseq     ItemId
@@ -49,8 +49,9 @@ func extractTargetURL(path string) string {
 
 func NewServer(dbfile string) *Server {
 	cache := httpcache.NewMemoryCache()
-	client := &http.Client{}
-	client.Transport = httpcache.NewTransport(cache)
+	hclient := &http.Client{}
+	hclient.Transport = httpcache.NewTransport(cache)
+	client := NewGetClient(hclient)
 	db, err := leveldb.OpenFile(dbfile, nil)
 	if err != nil {
 		glog.Error(err)
@@ -328,6 +329,7 @@ func handleApply(resp *http.Response, r *http.Request) (*http.Response, error) {
 	default:
 		return resp, nil
 	}
+	defer resp.Body.Close()
 
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "%s %s", resp.Proto, resp.Status)

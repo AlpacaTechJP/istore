@@ -12,7 +12,6 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-
 func Test(t *testing.T) { TestingT(t) }
 
 type S struct{}
@@ -22,6 +21,9 @@ var _ = Suite(&S{})
 func (_ *S) TestExtractTargetURL(c *C) {
 	c.Check(extractTargetURL("/abc/http://example.com/foo/bar.jpg"),
 		Equals, "http://example.com/foo/bar.jpg")
+
+	c.Check(extractTargetURL("/abc/http://localhost:9999/path/http://example.com/foo/bar.jpg"),
+		Equals, "http://localhost:9999/path/http://example.com/foo/bar.jpg")
 }
 
 type mockWriter struct {
@@ -75,7 +77,7 @@ func (_ *S) TestPostItem(c *C) {
 		return
 	}
 
-	post := func (path, metadata string, item *ItemMeta) (w *mockWriter, err error) {
+	post := func(path, metadata string, item *ItemMeta) (w *mockWriter, err error) {
 		return putpost("POST", path, metadata, item)
 	}
 
