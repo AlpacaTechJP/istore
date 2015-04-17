@@ -120,8 +120,7 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 	// fetch item from db if exists
 	if data, err := s.Db.Get([]byte(key), nil); err == nil {
 		if _, err = meta.UnmarshalMsg(data); err != nil {
-			//if err := json.Unmarshal(data, &meta); err != nil {
-			glog.Error("failed to parse json from db ", err)
+			glog.Error("failed to parse msgpack from db ", err)
 			// continue anyway as new item
 		}
 	}
@@ -152,7 +151,6 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 
 	metabytes := []byte{}
 	metabytes, err := msgp.AppendIntf(metabytes, &meta)
-	//metastr, err := json.Marshal(&meta)
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, "Error", http.StatusInternalServerError)
@@ -161,7 +159,6 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 
 	batch := new(leveldb.Batch)
 	// User path -> metadata
-	//batch.Put([]byte(key), []byte(metastr))
 	batch.Put([]byte(key), metabytes)
 
 	if isnew {
@@ -193,7 +190,6 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}
 	msgp.UnmarshalAsJSON(w, metabytes)
-	//w.Write(metastr)
 }
 
 func (s *Server) ServeDelete(w http.ResponseWriter, r *http.Request) {
@@ -233,7 +229,6 @@ func (s *Server) ServeList(w http.ResponseWriter, r *http.Request, path string) 
 			value := iter.Value()
 			if value != nil {
 				if _, err := meta.UnmarshalMsg(value); err != nil {
-					//if err := json.Unmarshal(value, &result); err != nil {
 					glog.Error("failed to unmarshal metadata from db ", err)
 				}
 			}
