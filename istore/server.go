@@ -23,7 +23,7 @@ const _PathIdSeq = "sys.seq"
 const _PathSeqNS = "sys.ns.seq"
 
 type Server struct {
-	Client    *GetClient
+	Client    *http.Client
 	Cache     httpcache.Cache
 	Db        *leveldb.DB
 	idseq     ItemId
@@ -37,21 +37,20 @@ func copyHeader(w http.ResponseWriter, r *http.Response, header string) {
 	}
 }
 
-func extractTargetURL(path string) string {
-	r := regexp.MustCompile("^.+?/([0-9a-z]+\\://.+)$")
+func extractTargetURL(path string) (string, string) {
+	r := regexp.MustCompile("^(.*?/)([0-9a-z]+\\://.+)$")
 	strs := r.FindStringSubmatch(path)
 
-	if len(strs) > 1 {
-		return strs[1]
+	if len(strs) > 2 {
+		return strs[1], strs[2]
 	}
-	return ""
+	return "", ""
 }
 
 func NewServer(dbfile string) *Server {
 	cache := httpcache.NewMemoryCache()
-	hclient := &http.Client{}
-	hclient.Transport = httpcache.NewTransport(cache)
-	client := NewGetClient(hclient)
+	client := &http.Client{}
+	client.Transport = httpcache.NewTransport(cache)
 	db, err := leveldb.OpenFile(dbfile, nil)
 	if err != nil {
 		glog.Error(err)
@@ -274,41 +273,45 @@ func (s *Server) ServeGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	urlstr := extractTargetURL(path)
-	if urlstr == "" {
-		msg := fmt.Sprintf("target not found in path %s", path)
-		glog.Info(msg)
-		http.Error(w, msg, http.StatusNotFound)
-		return
-	}
-
-	client := s.Client
-	resp, err := client.Get(urlstr)
+	resp, err := s.GetApply(r)
 	if err != nil {
-		var msg string
-		statusCode := http.StatusBadRequest
+		statusCode := http.StatusInternalServerError
 		if resp == nil {
-			msg = fmt.Sprintf("%v", err)
 		} else {
-			msg = fmt.Sprintf("remote URL %q returned status: %v", urlstr, resp.Status)
 			statusCode = resp.StatusCode
 		}
-		glog.Error(msg)
-		http.Error(w, msg, statusCode)
+		glog.Error(err)
+		http.Error(w, "Error", statusCode)
 		return
 	}
 
-	if resp, err = handleApply(resp, r); err != nil {
-		glog.Error(err)
-		http.Error(w, "Error", http.StatusInternalServerError)
-		return
-	}
 	copyHeader(w, resp, "Last-Modified")
 	copyHeader(w, resp, "Expires")
 	copyHeader(w, resp, "Etag")
 	copyHeader(w, resp, "Content-Length")
 	copyHeader(w, resp, "Content-Type")
 	io.Copy(w, resp.Body)
+}
+
+func (s *Server) GetApply(r *http.Request) (*http.Response, error) {
+	path := r.URL.Path
+
+	dir, Url := extractTargetURL(path)
+	// glog.Info("dir ", dir, ", Url ", Url)
+	if Url == "" {
+		// TODO: return NotFound?
+		return nil, fmt.Errorf("target not found in path %s", path)
+	}
+
+	resp, err := s.getContent(dir, Url)
+	if err != nil {
+		if resp != nil {
+			return resp, fmt.Errorf("remote URL %q returned status: %v\n%v", Url, resp.Status, err)
+		}
+		return resp, err
+	}
+
+	return handleApply(resp, r)
 }
 
 func handleApply(resp *http.Response, r *http.Request) (*http.Response, error) {
