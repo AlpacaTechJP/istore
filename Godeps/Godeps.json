@@ -6,6 +6,14 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/3d0c/gmf",
+			"Rev": "22a52d17f85d67bb3fdcb23185c38cd4be3841c8"
+		},
+		{
+			"ImportPath": "github.com/disintegration/imaging",
+			"Rev": "3ab6ec550f20d497d2755ed3c48a3e45ad6b7eb9"
+		},
+		{
 			"ImportPath": "github.com/golang/glog",
 			"Rev": "44145f04b68cf362d9c4df2182967c2275eaefed"
 		},
@@ -28,6 +36,14 @@
 		{
 			"ImportPath": "github.com/tinylib/msgp/msgp",
 			"Rev": "75ee40d2601edf122ef667e2a07d600d4c44490c"
+		},
+		{
+			"ImportPath": "golang.org/x/image/bmp",
+			"Rev": "69a0d8f9aac9f031e8c49603c2d0385b0a22bf75"
+		},
+		{
+			"ImportPath": "golang.org/x/image/tiff",
+			"Rev": "69a0d8f9aac9f031e8c49603c2d0385b0a22bf75"
 		},
 		{
 			"ImportPath": "gopkg.in/check.v1",
