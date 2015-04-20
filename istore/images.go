@@ -123,13 +123,16 @@ func frame(input io.Reader, fn int) ([]byte, error) {
 		return nil, err
 	}
 
+	// Just to surprress "deprected format" warning...
+	cc.SetPixFmt(gmf.AV_PIX_FMT_YUV420P)
+
 	swsCtx := gmf.NewSwsCtx(srcVideoStream.CodecCtx(), cc, gmf.SWS_BICUBIC)
 	defer gmf.Release(swsCtx)
 
 	dstFrame := gmf.NewFrame().
 		SetWidth(srcVideoStream.CodecCtx().Width()).
 		SetHeight(srcVideoStream.CodecCtx().Height()).
-		SetFormat(gmf.AV_PIX_FMT_YUVJ420P)
+		SetFormat(gmf.AV_PIX_FMT_YUV420P)
 	defer gmf.Release(dstFrame)
 
 	if err := dstFrame.ImgAlloc(); err != nil {
