@@ -338,7 +338,7 @@ func handleApply(resp *http.Response, r *http.Request) (*http.Response, error) {
 		buf := new(bytes.Buffer)
 		fmt.Fprintf(buf, "%s %s", resp.Proto, resp.Status)
 		fmt.Fprintf(buf, "Content-Length: %d\n", len(img))
-		fmt.Fprintf(buf, "Content-type: image/jp2\n\n")
+		fmt.Fprintf(buf, "Content-type: image/jpeg\n\n")
 		buf.Write(img)
 
 		return http.ReadResponse(bufio.NewReader(buf), r)

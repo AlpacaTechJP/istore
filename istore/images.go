@@ -103,7 +103,7 @@ func frame(input io.Reader, fn int) ([]byte, error) {
 		return nil, err
 	}
 
-	codec, err := gmf.FindEncoder(gmf.AV_CODEC_ID_JPEG2000)
+	codec, err := gmf.FindEncoder(gmf.AV_CODEC_ID_MJPEG)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
@@ -112,7 +112,7 @@ func frame(input io.Reader, fn int) ([]byte, error) {
 	cc := gmf.NewCodecCtx(codec)
 	defer gmf.Release(cc)
 
-	cc.SetPixFmt(gmf.AV_PIX_FMT_RGB24).SetWidth(srcVideoStream.CodecCtx().Width()).SetHeight(srcVideoStream.CodecCtx().Height())
+	cc.SetPixFmt(gmf.AV_PIX_FMT_YUVJ420P).SetWidth(srcVideoStream.CodecCtx().Width()).SetHeight(srcVideoStream.CodecCtx().Height()).SetTimeBase(gmf.AVR{Num: 1, Den: 50})
 
 	if codec.IsExperimental() {
 		cc.SetStrictCompliance(gmf.FF_COMPLIANCE_EXPERIMENTAL)
@@ -129,7 +129,7 @@ func frame(input io.Reader, fn int) ([]byte, error) {
 	dstFrame := gmf.NewFrame().
 		SetWidth(srcVideoStream.CodecCtx().Width()).
 		SetHeight(srcVideoStream.CodecCtx().Height()).
-		SetFormat(gmf.AV_PIX_FMT_RGB24)
+		SetFormat(gmf.AV_PIX_FMT_YUVJ420P)
 	defer gmf.Release(dstFrame)
 
 	if err := dstFrame.ImgAlloc(); err != nil {
