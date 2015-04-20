@@ -329,6 +329,20 @@ func handleApply(resp *http.Response, r *http.Request) (*http.Response, error) {
 			return nil, err
 		}
 
+	case "frame":
+		fn, err := strconv.Atoi(r.FormValue("fn"))
+		if img, err = frame(resp.Body, fn); err != nil {
+			return nil, err
+		}
+
+		buf := new(bytes.Buffer)
+		fmt.Fprintf(buf, "%s %s", resp.Proto, resp.Status)
+		fmt.Fprintf(buf, "Content-Length: %d\n", len(img))
+		fmt.Fprintf(buf, "Content-type: image/jp2\n\n")
+		buf.Write(img)
+
+		return http.ReadResponse(bufio.NewReader(buf), r)
+
 	default:
 		return resp, nil
 	}

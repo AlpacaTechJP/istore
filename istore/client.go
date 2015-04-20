@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"mime"
+	//"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -42,13 +42,16 @@ func (s *Server) fileGet(Url string) (*http.Response, error) {
 
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "HTTP/1.1 200 OK")
-	if idx := strings.LastIndex(filepath, "."); idx > -1 {
-		ext := filepath[idx:]
-		fmt.Fprintf(buf, "Content-type: %s\n\n", mime.TypeByExtension(ext))
-	}
-	if stat, err := f.Stat(); err != nil {
-		fmt.Fprintf(buf, "Content-length: %d\n\n", stat.Size())
-	}
+	//if idx := strings.LastIndex(filepath, "."); idx > -1 {
+	//	ext := filepath[idx:]
+	//	fmt.Fprintf(buf, "\nContent-type: %s", mime.TypeByExtension(ext))
+	//}
+	//if stat, err := f.Stat(); err == nil {
+	//	fmt.Fprintf(buf, "\nContent-length: %d", stat.Size())
+	//} else {
+	//	glog.Error(err)
+	//}
+	fmt.Fprintf(buf, "\n\n")
 	io.Copy(buf, f)
 
 	return http.ReadResponse(bufio.NewReader(buf), nil)
