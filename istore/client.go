@@ -1,14 +1,13 @@
 package istore
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"io"
-	//"mime"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/golang/glog"
@@ -32,29 +31,43 @@ func (s *Server) getContent(dir, Url string) (*http.Response, error) {
 }
 
 func (s *Server) fileGet(Url string) (*http.Response, error) {
-	filepath := Url[len("file://"):]
+	filename := Url[len("file://"):]
 
-	f, err := os.Open(filepath)
+	content, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 
-	buf := new(bytes.Buffer)
-	fmt.Fprintf(buf, "HTTP/1.1 200 OK")
-	//if idx := strings.LastIndex(filepath, "."); idx > -1 {
-	//	ext := filepath[idx:]
-	//	fmt.Fprintf(buf, "\nContent-type: %s", mime.TypeByExtension(ext))
-	//}
-	//if stat, err := f.Stat(); err == nil {
-	//	fmt.Fprintf(buf, "\nContent-length: %d", stat.Size())
-	//} else {
-	//	glog.Error(err)
-	//}
-	fmt.Fprintf(buf, "\n\n")
-	io.Copy(buf, f)
+	resp := &http.Response{
+		Status:     "200 OK",
+		StatusCode: 200,
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     http.Header{},
+		Body:       content,
+	}
 
-	return http.ReadResponse(bufio.NewReader(buf), nil)
+	ctype := mime.TypeByExtension(filepath.Ext(filename))
+	if ctype == "" {
+		var buf [512]byte // see net/http/sniff.go
+		n, _ := io.ReadFull(content, buf[:])
+		ctype = http.DetectContentType(buf[:n])
+		_, err := content.Seek(0, os.SEEK_SET) // rewind to output whole file
+		if err != nil {
+			return nil, err
+		}
+	}
+	resp.Header.Set("Content-type", ctype)
+
+	if stat, err := content.Stat(); err == nil {
+		resp.ContentLength = stat.Size()
+		resp.Header.Set("Content-length", fmt.Sprintf("%d", stat.Size()))
+	} else {
+		glog.Error(err)
+	}
+
+	return resp, nil
 }
 
 func (s *Server) selfGet(dir, Url string) (*http.Response, error) {

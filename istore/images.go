@@ -1,5 +1,14 @@
 package istore
 
+/*
+
+#cgo pkg-config: libavformat
+
+#include "libavformat/avio.h"
+
+*/
+import "C"
+
 import (
 	"bytes"
 	"fmt"
@@ -12,6 +21,10 @@ import (
 	"github.com/3d0c/gmf"
 	"github.com/disintegration/imaging"
 	"github.com/golang/glog"
+)
+
+var (
+	AVSEEK_SIZE = C.AVSEEK_SIZE
 )
 
 func resize(input io.Reader, w, h int) ([]byte, error) {
@@ -41,9 +54,14 @@ func resize(input io.Reader, w, h int) ([]byte, error) {
 func frame(input io.Reader, fn int) ([]byte, error) {
 	ctx := gmf.NewCtx()
 
-	buf := new(bytes.Buffer)
-	io.Copy(buf, input)
-	reader := bytes.NewReader(buf.Bytes())
+	reader, ok := input.(io.ReadSeeker)
+	if !ok {
+		glog.Info("Reader not seekable")
+		buf := new(bytes.Buffer)
+		io.Copy(buf, input)
+		reader = bytes.NewReader(buf.Bytes())
+	}
+
 	handlers := &gmf.AVIOHandlers{
 		ReadPacket: func() ([]byte, int) {
 			b := make([]byte, 512)
@@ -58,8 +76,8 @@ func frame(input io.Reader, fn int) ([]byte, error) {
 		},
 		Seek: func(offset int64, whence int) int64 {
 			n, err := reader.Seek(offset, whence)
-			if err != nil {
-				glog.Error(err, n)
+			if whence != AVSEEK_SIZE && err != nil {
+				glog.Error(err, fmt.Sprintf(" (offset = %d, whence = %d)", offset, whence))
 			}
 			return n
 		},
