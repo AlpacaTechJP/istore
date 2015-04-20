@@ -56,6 +56,7 @@ func frame(input io.Reader, fn int) ([]byte, error) {
 
 	reader, ok := input.(io.ReadSeeker)
 	if !ok {
+		// TODO: spill to disk if necessary
 		glog.Info("Reader not seekable")
 		buf := new(bytes.Buffer)
 		io.Copy(buf, input)
