@@ -105,20 +105,12 @@ func (s *Server) NextItemId() ItemId {
 	}
 }
 
-func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Path
-
-	if strings.HasSuffix(key, "/_search") {
-		s.PerformSearch(w, r)
-		return
-	} else if strings.HasSuffix(key, "/_create_index") {
-		s.CreateIndex(w, r)
-		return
-	}
+func (s *Server) PutObject(key []byte, value string, batch *leveldb.Batch, overwrite bool) (
+	metabytes []byte, isnew bool, err error) {
 
 	meta := ItemMeta{}
 	// fetch item from db if exists
-	if data, err := s.Db.Get([]byte(key), nil); err == nil {
+	if data, err := s.Db.Get(key, nil); err == nil {
 		if _, err = meta.UnmarshalMsg(data); err != nil {
 			glog.Error("failed to parse msgpack from db ", err)
 			// continue anyway as new item
@@ -126,38 +118,31 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// allocate id if it's new
-	isnew := meta.ItemId == 0
+	isnew = meta.ItemId == 0
 	if isnew {
 		meta.ItemId = s.NextItemId()
 	}
 
-	// read user input metadata
-	value := r.FormValue("metadata")
 	usermeta := map[string]interface{}{}
 	if value != "" {
 		// PUT completely replaces metadata, whereas POST overwrites to
 		// the existing object.
-		if r.Method == "POST" && !isnew && meta.MetaData != nil {
+		if overwrite && !isnew && meta.MetaData != nil {
 			usermeta = meta.MetaData
 		}
 		if err := json.Unmarshal([]byte(value), &usermeta); err != nil {
-			glog.Error(err)
-			http.Error(w, "Error", http.StatusBadRequest)
-			return
+			return nil, false, err
 		}
 	}
 
 	meta.MetaData = usermeta
 
-	metabytes := []byte{}
-	metabytes, err := msgp.AppendIntf(metabytes, &meta)
+	metabytes = []byte{}
+	metabytes, err = msgp.AppendIntf(metabytes, &meta)
 	if err != nil {
-		glog.Error(err)
-		http.Error(w, "Error", http.StatusInternalServerError)
-		return
+		return nil, false, err
 	}
 
-	batch := new(leveldb.Batch)
 	// User path -> metadata
 	batch.Put([]byte(key), metabytes)
 
@@ -174,6 +159,33 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 		// guaranteed by this ItemId key.  That means this sequence persistency
 		// is nothing but a hint to quickly catch up to the latest value.
 		batch.Put([]byte(_PathIdSeq), itemId.Bytes())
+	}
+
+	return metabytes, isnew, err
+}
+
+func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Path
+	if strings.HasSuffix(key, "/_search") {
+		s.PerformSearch(w, r)
+		return
+	} else if strings.HasSuffix(key, "/_create_index") {
+		s.CreateIndex(w, r)
+		return
+	} else if strings.HasSuffix(key, "/_expand") {
+		s.Expand(w, r)
+		return
+	}
+
+	// read user input metadata
+	value := r.FormValue("metadata")
+	batch := new(leveldb.Batch)
+	overwrite := r.Method == "POST"
+	metabytes, isnew, err := s.PutObject([]byte(key), value, batch, overwrite)
+	if err != nil {
+		glog.Error(err)
+		http.Error(w, "Error", http.StatusInternalServerError)
+		return
 	}
 
 	if err := s.Db.Write(batch, nil); err != nil {
@@ -297,7 +309,6 @@ func (s *Server) GetApply(r *http.Request) (*http.Response, error) {
 	path := r.URL.Path
 
 	dir, Url := extractTargetURL(path)
-	// glog.Info("dir ", dir, ", Url ", Url)
 	if Url == "" {
 		// TODO: return NotFound?
 		return nil, fmt.Errorf("target not found in path %s", path)

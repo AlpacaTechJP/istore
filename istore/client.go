@@ -75,7 +75,11 @@ func (s *Server) selfGet(dir, Url string) (*http.Response, error) {
 	if strings.HasPrefix(path, "./") {
 		path = path[2:]
 	}
-	newpath := dir + path
+	newpath := path
+	if !strings.HasPrefix(path, "/") {
+		newpath = dir + path
+	}
+	// TODO: the rule of self scheme seems to be de-escape '%3F' to '?'
 	r, err := http.NewRequest("GET", newpath, nil)
 	if err != nil {
 		glog.Error("Error in newpath ", newpath)
