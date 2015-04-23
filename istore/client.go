@@ -87,3 +87,10 @@ func (s *Server) selfGet(dir, Url string) (*http.Response, error) {
 	}
 	return s.GetApply(r)
 }
+
+// ----
+// 1st level := http://example.com/foo/bar/video.flv?abc=xyz&def=1
+// 2nd level := self://http://example.com/foo/bar/video.flv%3Fabc=xyz%26def=1?param=value
+// 3rd level := self://self://http://example.com/foo/bar/video.flv%253Fabc=xyz%2526def=1%3Fparam=value
+// => to make self url, escape query of the path part, append raw '?' query
+//    and to use self url, split by '?', use the query, de-escape the path including internal query part.
