@@ -32,6 +32,11 @@ var (
 	AVSEEK_SIZE = C.AVSEEK_SIZE
 )
 
+func selfURL(p string) string {
+	r := strings.NewReplacer("?", "%3F", "%", "%25")
+	return "self://" + r.Replace(p)
+}
+
 func resize(input io.Reader, w, h int) ([]byte, error) {
 	m, format, err := image.Decode(input)
 	if err != nil {
@@ -164,13 +169,13 @@ func expand(s *Server, input io.Reader, dir, objkey string) error {
 		//	glog.Error(err)
 		//	break
 		//}
-		selfpath := objkey
-		// TODO: the rule of self:// seems to be percent-encode only '?' into '%3F'
-		//selfpath += url.QueryEscape(fmt.Sprintf("?apply=frame&fn=%d", i))
-		//selfpath += "%3F" + fmt.Sprintf("apply=frame&fn=%d", i)
+
+		// Escape only the path part to distinguish it from query string.
+		selfpath := selfURL(objkey)
+		// query string can be raw.
 		selfpath += fmt.Sprintf("?apply=frame&fn=%d", i)
 
-		key := dir + "self://" + selfpath
+		key := dir + selfpath
 		meta := map[string]interface{}{}
 		d := time.Duration(i) * time.Second
 		meta["timestamp"] = fmt.Sprintf("%02d:%02d:%02d", int(d.Hours()), int(d.Minutes())%60, int(d.Seconds())%60)

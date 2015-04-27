@@ -276,6 +276,7 @@ func (s *Server) ServeGet(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := s.Db.Get([]byte(path), nil); err != nil {
 		if err == leveldb.ErrNotFound {
+			glog.Error(path, " not found")
 			http.NotFound(w, r)
 			return
 		}
