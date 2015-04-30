@@ -19,13 +19,19 @@ type S struct{}
 var _ = Suite(&S{})
 
 func (_ *S) TestExtractTargetURL(c *C) {
-	dir, target := extractTargetURL("/abc/http://example.com/foo/bar.jpg")
-	c.Check(dir, Equals, "/abc/")
+	target := extractTargetURL("/abc/http://example.com/foo/bar.jpg")
 	c.Check(target, Equals, "http://example.com/foo/bar.jpg")
 
-	dir, target = extractTargetURL("/abc/http://localhost:9999/path/http://example.com/foo/bar.jpg")
-	c.Check(dir, Equals, "/abc/")
+	target = extractTargetURL("/abc/http://localhost:9999/path/http://example.com/foo/bar.jpg")
 	c.Check(target, Equals, "http://localhost:9999/path/http://example.com/foo/bar.jpg")
+
+	// rel path
+	target = extractTargetURL("/abc/self://def/efg.jpg")
+	c.Check(target, Equals, "self:///abc/def/efg.jpg")
+
+	// abs path
+	target = extractTargetURL("/abc/self:///def/efg.jpg")
+	c.Check(target, Equals, "self:///def/efg.jpg")
 }
 
 type mockWriter struct {

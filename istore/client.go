@@ -8,30 +8,45 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/golang/glog"
 )
 
-func (s *Server) getContent(dir, Url string) (*http.Response, error) {
-	u, err := url.Parse(Url)
-	if err != nil {
-		return nil, err
-	}
-	switch u.Scheme {
+type roundTripper struct{}
+
+func (s *Server) RoundTrip(req *http.Request) (*http.Response, error) {
+	switch req.URL.Scheme {
 	case "file":
-		return s.fileGet(Url)
+		return s.fileGet(req)
 	case "http", "https":
-		return s.Client.Get(Url)
+		client := &http.Client{}
+		return client.Do(req)
 	case "self":
-		return s.selfGet(dir, Url)
+		return s.selfGet(req)
 	}
 
-	return nil, fmt.Errorf("unknown scheme %s", u.Scheme)
+	return nil, fmt.Errorf("unknown scheme %s", req.URL.Scheme)
 }
 
-func (s *Server) fileGet(Url string) (*http.Response, error) {
-	filename := Url[len("file://"):]
+//func (s *Server) getContent(dir, Url string) (*http.Response, error) {
+//	u, err := url.Parse(Url)
+//	if err != nil {
+//		return nil, err
+//	}
+//	switch u.Scheme {
+//	case "file":
+//		return s.fileGet(Url)
+//	case "http", "https":
+//		return s.Client.Get(Url)
+//	case "self":
+//		return s.selfGet(dir, Url)
+//	}
+//
+//	return nil, fmt.Errorf("unknown scheme %s", u.Scheme)
+//}
+
+func (s *Server) fileGet(req *http.Request) (*http.Response, error) {
+	filename := req.URL.Path
 
 	content, err := os.Open(filename)
 	if err != nil {
@@ -70,26 +85,19 @@ func (s *Server) fileGet(Url string) (*http.Response, error) {
 	return resp, nil
 }
 
-func (s *Server) selfGet(dir, Url string) (*http.Response, error) {
-	path := Url[len("self://"):]
-	if strings.HasPrefix(path, "./") {
-		path = path[2:]
-	}
-	newpath := path
-	if !strings.HasPrefix(path, "/") {
-		newpath = dir + path
-	}
-	r, err := http.NewRequest("GET", newpath, nil)
+func (s *Server) selfGet(req *http.Request) (*http.Response, error) {
+	newpath := req.URL.Path
+	newreq, err := http.NewRequest("GET", newpath, nil)
 	if err != nil {
 		glog.Error("Error in newpath ", newpath)
 		return nil, err
 	}
-	r.URL.Path, err = url.QueryUnescape(r.URL.Path)
+	newreq.URL.Path, err = url.QueryUnescape(newreq.URL.Path)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
-	return s.GetApply(r)
+	return s.GetApply(newreq)
 }
 
 // ----

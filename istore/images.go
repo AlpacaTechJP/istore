@@ -92,14 +92,14 @@ func (s *Server) Expand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	videopath := args.Video
-	vdir, vUrl := extractTargetURL(videopath)
+	vUrl := extractTargetURL(videopath)
 	if vUrl == "" {
 		msg := fmt.Sprintf("target not found in path %s", videopath)
 		http.Error(w, msg, http.StatusNotFound)
 		return
 	}
 
-	resp, err := s.getContent(vdir, vUrl)
+	resp, err := s.Client.Get(vUrl)
 	if err != nil {
 		glog.Error(err)
 		http.Error(w, "Error", http.StatusInternalServerError)

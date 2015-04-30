@@ -37,20 +37,35 @@ func copyHeader(w http.ResponseWriter, r *http.Response, header string) {
 	}
 }
 
-func extractTargetURL(path string) (string, string) {
+func extractTargetURL(path string) string {
 	r := regexp.MustCompile("^(.*?/)([0-9a-z]+\\://.+)$")
 	strs := r.FindStringSubmatch(path)
 
-	if len(strs) > 2 {
-		return strs[1], strs[2]
+	if len(strs) <= 2 {
+		return ""
 	}
-	return "", ""
+
+	dir, Url := strs[1], strs[2]
+
+	// resolve relative path
+	if strings.HasPrefix(Url, "self://") {
+		path := Url[len("self://"):]
+		if strings.HasPrefix(path, "./") {
+			path = path[2:]
+		}
+		newpath := path
+		if !strings.HasPrefix(path, "/") {
+			newpath = dir + path
+		}
+		Url = "self://" + newpath
+	}
+
+	return Url
 }
 
 func NewServer(dbfile string) *Server {
 	cache := httpcache.NewMemoryCache()
-	client := &http.Client{}
-	client.Transport = httpcache.NewTransport(cache)
+	cacheTransport := httpcache.NewTransport(cache)
 	db, err := leveldb.OpenFile(dbfile, nil)
 	if err != nil {
 		glog.Error(err)
@@ -62,12 +77,15 @@ func NewServer(dbfile string) *Server {
 		idseq = ItemId(1).Bytes()
 	}
 
-	return &Server{
-		Client: client,
+	s := &Server{
+		Client: cacheTransport.Client(),
 		Cache:  cache,
 		Db:     db,
 		idseq:  ToItemId(idseq),
 	}
+	cacheTransport.Transport = s
+
+	return s
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -309,13 +327,13 @@ func (s *Server) ServeGet(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetApply(r *http.Request) (*http.Response, error) {
 	path := r.URL.Path
 
-	dir, Url := extractTargetURL(path)
+	Url := extractTargetURL(path)
 	if Url == "" {
 		// TODO: return NotFound?
 		return nil, fmt.Errorf("target not found in path %s", path)
 	}
 
-	resp, err := s.getContent(dir, Url)
+	resp, err := s.Client.Get(Url)
 	if err != nil {
 		if resp != nil {
 			return resp, fmt.Errorf("remote URL %q returned status: %v\n%v", Url, resp.Status, err)
