@@ -3,9 +3,13 @@ package istore
 import (
 	"bytes"
 	"encoding/json"
+	"image"
+	_ "image/jpeg"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -153,6 +157,53 @@ func (_ *S) TestPostItem(c *C) {
 	r, _ = http.NewRequest("DELETE", "http://example.com/path/to/", nil)
 	server.ServeHTTP(mock, r)
 	c.Check(mock.status, Equals, http.StatusOK)
+}
+
+func (_ *S) TestSelf(c *C) {
+	name, _ := ioutil.TempDir("", "istore")
+	server := NewServer(name)
+
+	request := func(method, path string) (w *mockWriter, err error) {
+		Url := "http://example.com" + path
+		r, err := http.NewRequest(method, Url, nil)
+		w = newMockWriter()
+		server.ServeHTTP(w, r)
+
+		return
+	}
+
+	var mock *mockWriter
+	var err error
+
+	wd, _ := os.Getwd()
+	testdata := filepath.Join(wd, "testdata", "sample.jpg")
+
+	mock, err = request("POST", "/path/to/file://"+testdata)
+	c.Check(mock.status, Equals, http.StatusCreated)
+	c.Check(err, Equals, nil)
+
+	mock, err = request("GET", "/path/to/file://"+testdata+"?apply=resize&w=100")
+	c.Check(mock.status, Equals, http.StatusOK)
+	resizedImg, format, err := image.Decode(bytes.NewReader(mock.body.Bytes()))
+	c.Check(format, Equals, "jpeg")
+
+	mock, err = request("POST", "/path/to/self://file://"+testdata+"%3Fapply=resize&w=100")
+	c.Check(mock.status, Equals, http.StatusCreated)
+
+	mock, err = request("GET", "/path/to/self://file://"+testdata+"%3Fapply=resize&w=100")
+	c.Check(mock.status, Equals, http.StatusOK)
+	resizedImg1, format, err := image.Decode(bytes.NewReader(mock.body.Bytes()))
+	c.Check(format, Equals, "jpeg")
+	c.Check(resizedImg1.Bounds().Max, Equals, resizedImg.Bounds().Max)
+
+	mock, err = request("POST", "/path/to/self://self://file://"+testdata+"%253Fapply=resize&w=100")
+	c.Check(mock.status, Equals, http.StatusCreated)
+
+	mock, err = request("GET", "/path/to/self://self://file://"+testdata+"%253Fapply=resize&w=100")
+	c.Check(mock.status, Equals, http.StatusOK)
+	resizedImg2, format, err := image.Decode(bytes.NewReader(mock.body.Bytes()))
+	c.Check(format, Equals, "jpeg")
+	c.Check(resizedImg2.Bounds().Max, Equals, resizedImg.Bounds().Max)
 }
 
 func (_ *S) TestItemId(c *C) {

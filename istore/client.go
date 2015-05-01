@@ -5,7 +5,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 
@@ -14,10 +13,11 @@ import (
 
 type roundTripper struct{}
 
+// RoundTrip implements http.RoundTripper.RoundTrip()
 func (s *Server) RoundTrip(req *http.Request) (*http.Response, error) {
 	switch req.URL.Scheme {
 	case "file":
-		return s.fileGet(req)
+		return fileGet(req)
 	case "http", "https":
 		client := &http.Client{}
 		return client.Do(req)
@@ -28,28 +28,12 @@ func (s *Server) RoundTrip(req *http.Request) (*http.Response, error) {
 	return nil, fmt.Errorf("unknown scheme %s", req.URL.Scheme)
 }
 
-//func (s *Server) getContent(dir, Url string) (*http.Response, error) {
-//	u, err := url.Parse(Url)
-//	if err != nil {
-//		return nil, err
-//	}
-//	switch u.Scheme {
-//	case "file":
-//		return s.fileGet(Url)
-//	case "http", "https":
-//		return s.Client.Get(Url)
-//	case "self":
-//		return s.selfGet(dir, Url)
-//	}
-//
-//	return nil, fmt.Errorf("unknown scheme %s", u.Scheme)
-//}
-
-func (s *Server) fileGet(req *http.Request) (*http.Response, error) {
+func fileGet(req *http.Request) (*http.Response, error) {
 	filename := req.URL.Path
 
 	content, err := os.Open(filename)
 	if err != nil {
+		// Return 404 if not found
 		return nil, err
 	}
 
@@ -86,15 +70,10 @@ func (s *Server) fileGet(req *http.Request) (*http.Response, error) {
 }
 
 func (s *Server) selfGet(req *http.Request) (*http.Response, error) {
-	newpath := req.URL.Path
-	newreq, err := http.NewRequest("GET", newpath, nil)
+	newurl := req.URL.String()[len("self://"):]
+	newreq, err := http.NewRequest("GET", newurl, nil)
 	if err != nil {
-		glog.Error("Error in newpath ", newpath)
-		return nil, err
-	}
-	newreq.URL.Path, err = url.QueryUnescape(newreq.URL.Path)
-	if err != nil {
-		glog.Error(err)
+		glog.Error("Error in newurl ", newurl)
 		return nil, err
 	}
 	return s.GetApply(newreq)
