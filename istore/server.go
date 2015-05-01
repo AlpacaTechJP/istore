@@ -311,7 +311,7 @@ func (s *Server) ServeGet(w http.ResponseWriter, r *http.Request) {
 		} else {
 			statusCode = resp.StatusCode
 		}
-		glog.Error(err)
+		glog.Error(err, statusCode)
 		http.Error(w, "Error", statusCode)
 		return
 	}

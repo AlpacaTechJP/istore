@@ -1,8 +1,10 @@
 package istore
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"mime"
 	"net/http"
 	"os"
@@ -34,15 +36,27 @@ func fileGet(req *http.Request) (*http.Response, error) {
 	content, err := os.Open(filename)
 	if err != nil {
 		// Return 404 if not found
+		if os.IsNotExist(err) {
+			resp := &http.Response{
+				Status:     "404 Not Found",
+				StatusCode: http.StatusNotFound,
+				Proto:      req.Proto,
+				ProtoMajor: req.ProtoMajor,
+				ProtoMinor: req.ProtoMinor,
+				Header:     http.Header{},
+				Body:       ioutil.NopCloser(bytes.NewReader([]byte{})),
+			}
+			return resp, err
+		}
 		return nil, err
 	}
 
 	resp := &http.Response{
 		Status:     "200 OK",
-		StatusCode: 200,
-		Proto:      "HTTP/1.1",
-		ProtoMajor: 1,
-		ProtoMinor: 1,
+		StatusCode: http.StatusOK,
+		Proto:      req.Proto,
+		ProtoMajor: req.ProtoMajor,
+		ProtoMinor: req.ProtoMinor,
 		Header:     http.Header{},
 		Body:       content,
 	}

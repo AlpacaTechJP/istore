@@ -159,6 +159,13 @@ func (_ *S) TestPostItem(c *C) {
 	c.Check(mock.status, Equals, http.StatusOK)
 }
 
+func (_ *S) TestFileGet(c *C) {
+	req, _ := http.NewRequest("GET", "/Not/Exist/File.png", nil)
+	resp, err := fileGet(req)
+	c.Check(resp.StatusCode, Equals, http.StatusNotFound)
+	c.Check(err, Not(Equals), nil)
+}
+
 func (_ *S) TestSelf(c *C) {
 	name, _ := ioutil.TempDir("", "istore")
 	server := NewServer(name)
