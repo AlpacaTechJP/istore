@@ -344,11 +344,90 @@ func (s *Server) GetApply(r *http.Request) (*http.Response, error) {
 	return handleApply(resp, r)
 }
 
-func handleApply(resp *http.Response, r *http.Request) (*http.Response, error) {
+func handleApply(resp *http.Response, r *http.Request) (newresp *http.Response, err error) {
 	apply := r.FormValue("apply")
 
 	var img []byte
 	switch apply {
+	case "adjustBrightness":
+		percentage, err := strconv.ParseFloat(r.FormValue("percentage"), 64)
+		if img, err = adjustBrightness(resp.Body, percentage); err != nil {
+			return nil, err
+		}
+
+	case "adjustContrast":
+		percentage, err := strconv.ParseFloat(r.FormValue("percentage"), 64)
+		if img, err = adjustContrast(resp.Body, percentage); err != nil {
+			return nil, err
+		}
+
+	case "adjustGamma":
+		sigmoid, err := strconv.ParseFloat(r.FormValue("sigmoid"), 64)
+		if img, err = adjustGamma(resp.Body, sigmoid); err != nil {
+			return nil, err
+		}
+
+	case "adjustSigmoid":
+		midpoint, err := strconv.ParseFloat(r.FormValue("midpoint"), 64)
+		factor, err := strconv.ParseFloat(r.FormValue("factor"), 64)
+		if img, err = adjustSigmoid(resp.Body, midpoint, factor); err != nil {
+			return nil, err
+		}
+
+	case "blur":
+		sigma, _ := strconv.ParseFloat(r.FormValue("sigma"), 64)
+		if img, err = blur(resp.Body, sigma); err != nil {
+			return nil, err
+		}
+
+	case "crop":
+		x0, err := strconv.Atoi(r.FormValue("x0"))
+		y0, err := strconv.Atoi(r.FormValue("y0"))
+		x1, err := strconv.Atoi(r.FormValue("x1"))
+		y1, err := strconv.Atoi(r.FormValue("y1"))
+		if x0 == 0 && y0 == 0 && x1 == 0 && y1 == 0 {
+			return resp, nil
+		}
+		if img, err = crop(resp.Body, x0, y0, x1, y1); err != nil {
+			return nil, err
+		}
+
+	case "flipH":
+		if img, err = flipH(resp.Body); err != nil {
+			return nil, err
+		}
+
+	case "flipV":
+		if img, err = flipH(resp.Body); err != nil {
+			return nil, err
+		}
+
+	case "grayscale":
+		if img, err = grayscale(resp.Body); err != nil {
+			return nil, err
+		}
+
+	case "invert":
+		if img, err = invert(resp.Body); err != nil {
+			return nil, err
+		}
+
+	case "sharpen":
+		sigmoid, err := strconv.ParseFloat(r.FormValue("sigmoid"), 64)
+		if img, err = sharpen(resp.Body, sigmoid); err != nil {
+			return nil, err
+		}
+
+	case "transpose":
+		if img, err = transpose(resp.Body); err != nil {
+			return nil, err
+		}
+
+	case "transverse":
+		if img, err = transverse(resp.Body); err != nil {
+			return nil, err
+		}
+
 	case "resize":
 		w, err := strconv.Atoi(r.FormValue("w"))
 		h, err := strconv.Atoi(r.FormValue("h"))

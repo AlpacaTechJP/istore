@@ -37,13 +37,13 @@ func selfURL(p string) string {
 	return "self://" + r.Replace(p)
 }
 
-func resize(input io.Reader, w, h int) ([]byte, error) {
+func processImage(input io.Reader, mainProc func(image.Image) image.Image) ([]byte, error) {
 	m, format, err := image.Decode(input)
 	if err != nil {
 		return nil, err
 	}
 
-	m = imaging.Resize(m, w, h, imaging.Lanczos)
+	m = mainProc(m)
 
 	buf := new(bytes.Buffer)
 	switch format {
@@ -59,6 +59,90 @@ func resize(input io.Reader, w, h int) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func adjustBrightness(input io.Reader, percentage float64) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.AdjustBrightness(m, percentage)
+	})
+}
+
+func adjustContrast(input io.Reader, percentage float64) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.AdjustContrast(m, percentage)
+	})
+}
+
+func adjustGamma(input io.Reader, sigmoid float64) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.AdjustGamma(m, sigmoid)
+	})
+}
+
+func adjustSigmoid(input io.Reader, midpoint, factor float64) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.AdjustSigmoid(m, midpoint, factor)
+	})
+}
+
+func blur(input io.Reader, sigma float64) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.Blur(m, sigma)
+	})
+}
+
+func crop(input io.Reader, x0, y0, x1, y1 int) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.Crop(m, image.Rect(x0, y0, x1, y1))
+	})
+}
+
+func flipH(input io.Reader) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.FlipH(m)
+	})
+}
+
+func flipV(input io.Reader) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.FlipV(m)
+	})
+}
+
+func grayscale(input io.Reader) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.Grayscale(m)
+	})
+}
+
+func invert(input io.Reader) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.Invert(m)
+	})
+}
+
+func sharpen(input io.Reader, sigma float64) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.Sharpen(m, sigma)
+	})
+}
+
+func transpose(input io.Reader) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.Transpose(m)
+	})
+}
+
+func transverse(input io.Reader) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.Transverse(m)
+	})
+}
+
+func resize(input io.Reader, w, h int) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.Resize(m, w, h, imaging.Lanczos)
+	})
 }
 
 type AVWrapper struct {
