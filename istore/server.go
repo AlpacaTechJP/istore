@@ -362,8 +362,8 @@ func handleApply(resp *http.Response, r *http.Request) (newresp *http.Response, 
 		}
 
 	case "adjustGamma":
-		sigmoid, err := strconv.ParseFloat(r.FormValue("sigmoid"), 64)
-		if img, err = adjustGamma(resp.Body, sigmoid); err != nil {
+		gamma, err := strconv.ParseFloat(r.FormValue("gamma"), 64)
+		if img, err = adjustGamma(resp.Body, gamma); err != nil {
 			return nil, err
 		}
 
@@ -392,13 +392,20 @@ func handleApply(resp *http.Response, r *http.Request) (newresp *http.Response, 
 			return nil, err
 		}
 
+	case "fit":
+		w, err := strconv.Atoi(r.FormValue("w"))
+		h, err := strconv.Atoi(r.FormValue("h"))
+		if img, err = fit(resp.Body, w, h); err != nil {
+			return nil, err
+		}
+
 	case "flipH":
 		if img, err = flipH(resp.Body); err != nil {
 			return nil, err
 		}
 
 	case "flipV":
-		if img, err = flipH(resp.Body); err != nil {
+		if img, err = flipV(resp.Body); err != nil {
 			return nil, err
 		}
 

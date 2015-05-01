@@ -73,9 +73,9 @@ func adjustContrast(input io.Reader, percentage float64) ([]byte, error) {
 	})
 }
 
-func adjustGamma(input io.Reader, sigmoid float64) ([]byte, error) {
+func adjustGamma(input io.Reader, gamma float64) ([]byte, error) {
 	return processImage(input, func(m image.Image) image.Image {
-		return imaging.AdjustGamma(m, sigmoid)
+		return imaging.AdjustGamma(m, gamma)
 	})
 }
 
@@ -94,6 +94,12 @@ func blur(input io.Reader, sigma float64) ([]byte, error) {
 func crop(input io.Reader, x0, y0, x1, y1 int) ([]byte, error) {
 	return processImage(input, func(m image.Image) image.Image {
 		return imaging.Crop(m, image.Rect(x0, y0, x1, y1))
+	})
+}
+
+func fit(input io.Reader, width, height int) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		return imaging.Fit(m, width, height, imaging.Lanczos)
 	})
 }
 
