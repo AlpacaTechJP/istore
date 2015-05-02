@@ -375,9 +375,19 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 				if frame == nil || err != nil {
 					return nil, err
 				}
+
+				if glog.V(3) {
+					glog.Info(fmt.Sprintf("desired = %v, actual = %v", sec, frame.TimeStamp()))
+				}
 				swsCtx.Scale(frame, dstFrame)
 
 				p, ready, _ := dstFrame.EncodeNewPacket(cc)
+				if ready {
+					if sec*1000 > frame.TimeStamp() {
+						ready = false
+					}
+				}
+
 				if ready {
 					// Packet data will be free'ed by Packet.Free.
 					// copy it so we don't need to worry about it.
