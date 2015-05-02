@@ -6,10 +6,6 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "github.com/3d0c/gmf",
-			"Rev": "22a52d17f85d67bb3fdcb23185c38cd4be3841c8"
-		},
-		{
 			"ImportPath": "github.com/disintegration/imaging",
 			"Rev": "3ab6ec550f20d497d2755ed3c48a3e45ad6b7eb9"
 		},
@@ -36,6 +32,10 @@
 		{
 			"ImportPath": "github.com/tinylib/msgp/msgp",
 			"Rev": "75ee40d2601edf122ef667e2a07d600d4c44490c"
+		},
+		{
+			"ImportPath": "github.com/umitanuki/gmf",
+			"Rev": "0b796c0907e926e57f7240a18a5fb48f1ff572d0"
 		},
 		{
 			"ImportPath": "golang.org/x/image/bmp",
