@@ -18,14 +18,16 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/3d0c/gmf"
 	"github.com/disintegration/imaging"
 	"github.com/golang/glog"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/umitanuki/gmf"
 )
 
 var (
@@ -250,9 +252,11 @@ func expand(s *Server, input io.Reader, dir, objkey string) error {
 	}
 
 	batch := new(leveldb.Batch)
-	seconds := float64(ctx.Duration())
-	glog.Info(seconds, " seconds")
-	for i := 0; i < int(seconds/1000000)+1; i++ {
+	duration := float64(ctx.Duration())
+	// format with padding so path key order agrees with our intension.
+	npads := int(math.Log10(duration/1000000)) + 1
+	snpads := strconv.Itoa(npads)
+	for i := 0; i < int(duration/1000000)+1; i++ {
 		// TODO: create relpath.  filepath.Rel() removes duplicate slashes, bad for us.
 		//selfpath, err := filepath.Rel(dir, objkey)
 		//if err != nil {
@@ -263,7 +267,7 @@ func expand(s *Server, input io.Reader, dir, objkey string) error {
 		// Escape only the path part to distinguish it from query string.
 		selfpath := selfURL(objkey)
 		// query string can be raw.
-		selfpath += fmt.Sprintf("?apply=frame&fn=%d", i)
+		selfpath += fmt.Sprintf("?apply=frame&sec=%0"+snpads+"d", i)
 
 		key := dir + selfpath
 		meta := map[string]interface{}{}
@@ -285,7 +289,7 @@ func expand(s *Server, input io.Reader, dir, objkey string) error {
 	return nil
 }
 
-func frame(input io.Reader, fn int) ([]byte, error) {
+func frame(input io.Reader, sec int) ([]byte, error) {
 	handlers := makeInputHandlers(input)
 
 	ctx := gmf.NewCtx()
@@ -304,7 +308,7 @@ func frame(input io.Reader, fn int) ([]byte, error) {
 		return nil, err
 	}
 
-	if err = ctx.SeekFrameAt(fn, srcVideoStream.Index()); err != nil {
+	if err = ctx.SeekFrameAt(sec, srcVideoStream.Index()); err != nil {
 		glog.Error(err)
 		return nil, err
 	}
@@ -346,35 +350,66 @@ func frame(input io.Reader, fn int) ([]byte, error) {
 		return nil, err
 	}
 
-	for packet := range ctx.GetNewPackets() {
-		if packet.StreamIndex() != srcVideoStream.Index() {
-			continue
+	for {
+		packet := ctx.GetNextPacket()
+		if packet == nil {
+			break
 		}
-		ist, err := ctx.GetStream(packet.StreamIndex())
+
+		// Wrap by anonymous func so we can use defer for each iteration.
+		data, err := func(packet *gmf.Packet) ([]byte, error) {
+			defer gmf.Release(packet)
+
+			if packet.StreamIndex() != srcVideoStream.Index() {
+				return nil, nil
+			}
+			ist, err := ctx.GetStream(packet.StreamIndex())
+			if err != nil {
+				return nil, err
+			}
+
+			ready := false
+			var buf []byte
+			for !ready {
+				frame, err := packet.GetNextFrame(ist.CodecCtx())
+				if frame == nil || err != nil {
+					return nil, err
+				}
+				swsCtx.Scale(frame, dstFrame)
+
+				p, ready, _ := dstFrame.EncodeNewPacket(cc)
+				if ready {
+					// Packet data will be free'ed by Packet.Free.
+					// copy it so we don't need to worry about it.
+					src := p.Data()
+					buf = make([]byte, len(src))
+					copy(buf, src)
+				}
+
+				gmf.Release(p)
+				gmf.Release(frame)
+
+				if ready {
+					return buf, nil
+				}
+			}
+
+			return nil, nil
+		}(packet)
+
+		// Error?
 		if err != nil {
 			return nil, err
 		}
-
-		// TODO: Frames is not concurrency-safe.
-		for frame := range packet.Frames(ist.CodecCtx()) {
-			swsCtx.Scale(frame, dstFrame)
-
-			if p, ready, _ := dstFrame.EncodeNewPacket(cc); ready {
-				defer gmf.Release(p)
-				return p.Data(), nil
-			}
+		// Done?
+		if data != nil {
+			return data, nil
 		}
-
-		// TODO: release in early return
-		// We need to stop the channel returned by GetNewPackets
-		// or suck it up to release all packet objects.
-		// Probably we need a synchronized version of GetNewPackets.
-		// Signaling the goroutine could be another way.
-		gmf.Release(packet)
 	}
 
-	return nil, fmt.Errorf("error")
+	// Did we not find frame?
+	return nil, fmt.Errorf("unexpected end of stream")
 }
 
 // --- snippet
-// curl localhost:8592/path/mp4/slice/ | jq -r '. | sort_by(.metadata.timestamp) | .[] | "\(.metadata.timestamp)<img src=\"http://localhost:8592\(._filepath)\"><br/>"' | sed -e 's/&/%26/' | sed -e 's/?/%3F/' > /tmp/foo.html
+// curl localhost:8592/path/mp4/slice/ | jq -r '. | sort_by(.metadata.timestamp) | .[] | "\(.metadata.timestamp)<img src=\"http://localhost:8592\(._filepath)\"><br/>"' | sed -e 's/%/%25/g' | sed -e 's/?/%3F/'

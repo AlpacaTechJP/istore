@@ -199,6 +199,7 @@ func (s *Server) ServePost(w http.ResponseWriter, r *http.Request) {
 	value := r.FormValue("metadata")
 	batch := new(leveldb.Batch)
 	overwrite := r.Method == "POST"
+	glog.Info("about PutObject key = ", key)
 	metabytes, isnew, err := s.PutObject([]byte(key), value, batch, overwrite)
 	if err != nil {
 		glog.Error(err)
@@ -446,8 +447,8 @@ func handleApply(resp *http.Response, r *http.Request) (newresp *http.Response, 
 		}
 
 	case "frame":
-		fn, err := strconv.Atoi(r.FormValue("fn"))
-		if img, err = frame(resp.Body, fn); err != nil {
+		sec, err := strconv.Atoi(r.FormValue("sec"))
+		if img, err = frame(resp.Body, sec); err != nil {
 			return nil, err
 		}
 
