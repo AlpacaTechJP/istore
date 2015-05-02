@@ -2,7 +2,11 @@ package istore
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 	"runtime"
+	"runtime/pprof"
+	"syscall"
 	"time"
 
 	"github.com/golang/glog"
@@ -20,6 +24,9 @@ func humanSize(size uint64) string {
 }
 
 func watcher() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGUSR2)
+
 	for {
 		if glog.V(3) {
 			glog.Info(fmt.Sprintf("PROF: # goroutine = %d", runtime.NumGoroutine()))
@@ -30,6 +37,14 @@ func watcher() {
 
 		select {
 		case <-time.After(5 * time.Second):
+		case <-c:
+			f, err := os.Create("/tmp/memprofile")
+			if err != nil {
+				glog.Error(err)
+			} else {
+				pprof.WriteHeapProfile(f)
+				f.Close()
+			}
 		}
 	}
 }
