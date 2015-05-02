@@ -84,6 +84,8 @@ func NewServer(dbfile string) *Server {
 		idseq = ItemId(1).Bytes()
 	}
 
+	go watcher()
+
 	s := &Server{
 		Client: cacheTransport.Client(),
 		Cache:  cache,
