@@ -245,6 +245,7 @@ func expand(s *Server, input io.Reader, dir, objkey string) error {
 	ioctx, err := gmf.NewAVIOContext(ctx, handlers)
 	ctx.SetPb(ioctx)
 	defer ctx.CloseInputAndRelease()
+	defer gmf.Release(ioctx)
 
 	if err = ctx.OpenInput("dummy"); err != nil {
 		glog.Error(err)
@@ -296,6 +297,7 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 	ioctx, err := gmf.NewAVIOContext(ctx, handlers)
 	ctx.SetPb(ioctx)
 	defer ctx.CloseInputAndRelease()
+	defer gmf.Release(ioctx)
 
 	if err = ctx.OpenInput("dummy"); err != nil {
 		glog.Error(err)
