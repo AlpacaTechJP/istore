@@ -294,9 +294,12 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 	handlers := makeInputHandlers(input)
 
 	ctx := gmf.NewCtx()
-	ioctx, err := gmf.NewAVIOContext(ctx, handlers)
-	ctx.SetPb(ioctx)
 	defer ctx.CloseInputAndRelease()
+	ioctx, err := gmf.NewAVIOContext(ctx, handlers)
+	if err != nil {
+		return nil, err
+	}
+	ctx.SetPb(ioctx)
 	defer gmf.Release(ioctx)
 
 	if err = ctx.OpenInput("dummy"); err != nil {
