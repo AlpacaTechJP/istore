@@ -20,6 +20,10 @@ int gmf_get_frame_line_size(AVFrame *frame, int idx) {
 	return frame->linesize[idx];
 }
 
+uint8_t *gmf_get_frame_data(AVFrame *frame, int idx) {
+	return frame->data[idx];
+}
+
 */
 import "C"
 
@@ -201,6 +205,11 @@ func (this *Frame) SetData(idx int, lineSize int, data int) *Frame {
 	C.gmf_set_frame_data(this.avFrame, C.int(idx), C.int(lineSize), (_Ctype_uint8_t)(data))
 
 	return this
+}
+
+func (this *Frame) Data(idx int) []byte {
+	dataptr := C.gmf_get_frame_data(this.avFrame, C.int(idx))
+	return C.GoBytes(unsafe.Pointer(dataptr), C.int(this.LineSize(idx)*this.Height()))
 }
 
 func (this *Frame) LineSize(idx int) int {

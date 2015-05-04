@@ -35,7 +35,7 @@
 		},
 		{
 			"ImportPath": "github.com/umitanuki/gmf",
-			"Rev": "b0078eaddda992b7410ef266dfc2e674d9743fd7"
+			"Rev": "1fe6e1dcf5666f59e7d5ff4e603a710dcac11a37"
 		},
 		{
 			"ImportPath": "golang.org/x/image/bmp",
