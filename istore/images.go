@@ -389,20 +389,17 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 				}
 				swsCtx.Scale(frame, dstFrame)
 
-				p, ready, _ := dstFrame.EncodeNewPacket(cc)
-				if ready {
-					if sec*1000 > frame.TimeStamp() {
-						ready = false
-					}
-				}
+				ready = sec*1000 <= frame.TimeStamp()
 
 				if ready {
-					// Packet data will be free'ed by Packet.Free.
-					// copy it so we don't need to worry about it.
-					src := dstFrame.Data(p.StreamIndex())
+					// Encode RGB24 to RGBA to JPEG.
+					// TODO: we could avoid even copy with the loop
+					// by introducing RGB type implementing image.Image
+					streamIndex := 0 // not sure how to determine this??
+					src := dstFrame.Data(streamIndex)
 					img := image.NewRGBA(image.Rect(0, 0, dstFrame.Width(), dstFrame.Height()))
 					stride := img.Stride
-					linesize := dstFrame.LineSize(p.StreamIndex())
+					linesize := dstFrame.LineSize(streamIndex)
 					for y := 0; y < dstFrame.Height(); y++ {
 						for x := 0; x < dstFrame.Width(); x++ {
 							img.Pix[y*stride+x*4+0] = src[y*linesize+x*3+0]
@@ -415,7 +412,6 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 					jpeg.Encode(buf, img, &jpeg.Options{Quality: 100})
 				}
 
-				gmf.Release(p)
 				gmf.Release(frame)
 
 				if ready {
