@@ -52,7 +52,7 @@ func processImage(input io.Reader, mainProc func(image.Image) image.Image) ([]by
 	case "gif":
 		gif.Encode(buf, m, nil)
 	case "jpeg":
-		quality := 95
+		quality := 100
 		jpeg.Encode(buf, m, &jpeg.Options{Quality: quality})
 	case "png":
 		png.Encode(buf, m)
@@ -318,7 +318,7 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 		return nil, err
 	}
 
-	codec, err := gmf.FindEncoder(gmf.AV_CODEC_ID_MJPEG)
+	codec, err := gmf.FindEncoder(gmf.AV_CODEC_ID_JPEG2000)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
@@ -327,7 +327,10 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 	cc := gmf.NewCodecCtx(codec)
 	defer gmf.Release(cc)
 
-	cc.SetPixFmt(gmf.AV_PIX_FMT_YUVJ420P).SetWidth(srcVideoStream.CodecCtx().Width()).SetHeight(srcVideoStream.CodecCtx().Height()).SetTimeBase(gmf.AVR{Num: 1, Den: 50})
+	cc.SetPixFmt(gmf.AV_PIX_FMT_RGB24).
+		SetWidth(srcVideoStream.CodecCtx().Width()).
+		SetHeight(srcVideoStream.CodecCtx().Height())
+	//cc.SetTimeBase(gmf.AVR{Num: 1, Den: 50})
 
 	if codec.IsExperimental() {
 		cc.SetStrictCompliance(gmf.FF_COMPLIANCE_EXPERIMENTAL)
@@ -339,15 +342,15 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 	}
 
 	// Just to surprress "deprected format" warning...
-	cc.SetPixFmt(gmf.AV_PIX_FMT_YUV420P)
+	cc.SetPixFmt(gmf.AV_PIX_FMT_RGB24)
 
-	swsCtx := gmf.NewSwsCtx(srcVideoStream.CodecCtx(), cc, gmf.SWS_BICUBIC)
+	swsCtx := gmf.NewSwsCtx(srcVideoStream.CodecCtx(), cc, gmf.SWS_POINT)
 	defer gmf.Release(swsCtx)
 
 	dstFrame := gmf.NewFrame().
 		SetWidth(srcVideoStream.CodecCtx().Width()).
 		SetHeight(srcVideoStream.CodecCtx().Height()).
-		SetFormat(gmf.AV_PIX_FMT_YUV420P)
+		SetFormat(gmf.AV_PIX_FMT_RGB24)
 	defer gmf.Release(dstFrame)
 
 	if err := dstFrame.ImgAlloc(); err != nil {
@@ -374,7 +377,7 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 			}
 
 			ready := false
-			var buf []byte
+			var buf *bytes.Buffer
 			for !ready {
 				frame, err := packet.GetNextFrame(ist.CodecCtx())
 				if frame == nil || err != nil {
@@ -396,16 +399,27 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 				if ready {
 					// Packet data will be free'ed by Packet.Free.
 					// copy it so we don't need to worry about it.
-					src := p.Data()
-					buf = make([]byte, len(src))
-					copy(buf, src)
+					src := dstFrame.Data(p.StreamIndex())
+					img := image.NewRGBA(image.Rect(0, 0, dstFrame.Width(), dstFrame.Height()))
+					stride := img.Stride
+					linesize := dstFrame.LineSize(p.StreamIndex())
+					for y := 0; y < dstFrame.Height(); y++ {
+						for x := 0; x < dstFrame.Width(); x++ {
+							img.Pix[y*stride+x*4+0] = src[y*linesize+x*3+0]
+							img.Pix[y*stride+x*4+1] = src[y*linesize+x*3+1]
+							img.Pix[y*stride+x*4+2] = src[y*linesize+x*3+2]
+							img.Pix[y*stride+x*4+3] = 0
+						}
+					}
+					buf = new(bytes.Buffer)
+					jpeg.Encode(buf, img, &jpeg.Options{Quality: 100})
 				}
 
 				gmf.Release(p)
 				gmf.Release(frame)
 
 				if ready {
-					return buf, nil
+					return buf.Bytes(), nil
 				}
 			}
 
