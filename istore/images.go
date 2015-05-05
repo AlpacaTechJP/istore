@@ -153,13 +153,6 @@ func resize(input io.Reader, w, h int) ([]byte, error) {
 	})
 }
 
-type AVWrapper struct {
-	inputCtx    *gmf.AVIOContext
-	codec       *gmf.Codec
-	videoStream *gmf.Stream
-	codecCtx    *gmf.CodecCtx
-}
-
 type ExpandArgs struct {
 	Video string `json:"video"`
 }
@@ -330,7 +323,6 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 	cc.SetPixFmt(gmf.AV_PIX_FMT_RGB24).
 		SetWidth(srcVideoStream.CodecCtx().Width()).
 		SetHeight(srcVideoStream.CodecCtx().Height())
-	//cc.SetTimeBase(gmf.AVR{Num: 1, Den: 50})
 
 	if codec.IsExperimental() {
 		cc.SetStrictCompliance(gmf.FF_COMPLIANCE_EXPERIMENTAL)
@@ -340,9 +332,13 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 		glog.Error(err)
 		return nil, err
 	}
+	defer cc.Close()
 
 	// Just to surprress "deprected format" warning...
 	cc.SetPixFmt(gmf.AV_PIX_FMT_RGB24)
+
+	// This is necessary to avoid leaking thread used by codec.
+	defer srcVideoStream.CodecCtx().Close()
 
 	swsCtx := gmf.NewSwsCtx(srcVideoStream.CodecCtx(), cc, gmf.SWS_POINT)
 	defer gmf.Release(swsCtx)
@@ -384,7 +380,7 @@ func frame(input io.Reader, sec int) ([]byte, error) {
 					return nil, err
 				}
 
-				if glog.V(3) {
+				if glog.V(5) {
 					glog.Info(fmt.Sprintf("desired = %v, actual = %v", sec, frame.TimeStamp()))
 				}
 				swsCtx.Scale(frame, dstFrame)
