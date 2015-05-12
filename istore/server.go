@@ -12,10 +12,9 @@ import (
 	"strings"
 	"sync"
 
+	lru "github.com/AlpacaDB/istore/lru"
 	"github.com/golang/glog"
 	"github.com/gregjones/httpcache"
-	//"github.com/gregjones/httpcache/diskcache"
-	//"github.com/peterbourgon/diskv"
 	"github.com/syndtr/goleveldb/leveldb"
 	levelutil "github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/tinylib/msgp/msgp"
@@ -66,12 +65,13 @@ func extractTargetURL(path string) string {
 }
 
 func NewServer(dbfile string) *Server {
-	cache := httpcache.NewMemoryCache()
+	//cache := httpcache.NewMemoryCache()
 	//cache := diskcache.NewWithDiskv(
 	//	diskv.New(diskv.Options{
 	//		BasePath:     "/tmp/istorecache",
 	//		CacheSizeMax: 10 * (1 << 30), // 10 GB
 	//	}))
+	cache := lru.New(5 * (1 << 30)) // 5 GB
 	cacheTransport := httpcache.NewTransport(cache)
 	db, err := leveldb.OpenFile(dbfile, nil)
 	if err != nil {
