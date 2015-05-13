@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	lru "github.com/AlpacaDB/istore/lru"
+	"github.com/AlpacaDB/istore/lru"
 	"github.com/golang/glog"
 	"github.com/gregjones/httpcache"
 	"github.com/syndtr/goleveldb/leveldb"

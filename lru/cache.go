@@ -1,4 +1,4 @@
-package istore
+package lru
 
 import (
 	"container/list"
