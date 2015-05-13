@@ -523,8 +523,14 @@ func handleApply(resp *http.Response, r *http.Request) (newresp *http.Response, 
 	defer resp.Body.Close()
 
 	buf := new(bytes.Buffer)
-	fmt.Fprintf(buf, "%s %s", resp.Proto, resp.Status)
-	resp.Header.WriteSubset(buf, map[string]bool{"Content-Length": true})
+	fmt.Fprintf(buf, "%s %s\n", resp.Proto, resp.Status)
+	excludes := map[string]bool{
+		"Content-Length": true,
+		"Cache-Control":  true,
+	}
+	resp.Header.WriteSubset(buf, excludes)
+	//fmt.Fprintf(buf, "Date: %s\n", time.Now().String())
+	fmt.Fprintf(buf, "Cache-Control: max-age=1000000\n")
 	fmt.Fprintf(buf, "Content-Length: %d\n\n", len(img))
 	buf.Write(img)
 
