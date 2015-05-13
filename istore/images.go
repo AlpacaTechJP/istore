@@ -14,6 +14,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	"image/color"
+	"image/draw"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
@@ -37,6 +39,33 @@ var (
 func selfURL(p string) string {
 	r := strings.NewReplacer("?", "%3F", "%", "%25")
 	return "self://" + r.Replace(p)
+}
+
+// HLine draws a horizontal line
+func HLine(img draw.Image, x1, y, x2 int, col color.Color) {
+	for ; x1 <= x2; x1++ {
+		img.Set(x1, y, col)
+	}
+}
+
+// VLine draws a veritcal line
+func VLine(img draw.Image, x, y1, y2 int, col color.Color) {
+	for ; y1 <= y2; y1++ {
+		img.Set(x, y1, col)
+	}
+}
+
+// Rect draws a rectangle utilizing HLine() and VLine()
+func RectLine(img draw.Image, x1, y1, x2, y2 int, col color.Color) {
+	HLine(img, x1, y1, x2, col)
+	HLine(img, x1, y2, x2, col)
+	VLine(img, x1, y1, y2, col)
+	VLine(img, x2, y1, y2, col)
+}
+
+type drawRectOptions struct {
+	X1, Y1, X2, Y2 int
+	R, G, B        uint8
 }
 
 func processImage(input io.Reader, mainProc func(image.Image) image.Image) ([]byte, error) {
@@ -96,6 +125,19 @@ func blur(input io.Reader, sigma float64) ([]byte, error) {
 func crop(input io.Reader, x0, y0, x1, y1 int) ([]byte, error) {
 	return processImage(input, func(m image.Image) image.Image {
 		return imaging.Crop(m, image.Rect(x0, y0, x1, y1))
+	})
+}
+
+func drawRect(input io.Reader, opts []*drawRectOptions) ([]byte, error) {
+	return processImage(input, func(m image.Image) image.Image {
+		r := m.Bounds()
+		m2 := image.NewRGBA(r)
+		draw.Draw(m2, r, m, image.ZP, draw.Src)
+		for _, opt := range opts {
+			col := color.RGBA{opt.R, opt.G, opt.B, 255}
+			RectLine(m2, opt.X1, opt.Y1, opt.X2, opt.Y2, col)
+		}
+		return m2
 	})
 }
 

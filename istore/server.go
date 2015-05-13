@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -64,8 +65,29 @@ func extractTargetURL(path string) string {
 	return Url
 }
 
+type Values struct {
+	url.Values
+}
+
+func (v Values) GetInt(key string, defval int) int {
+	val, err := strconv.Atoi(v.Get(key))
+	if err != nil {
+		return defval
+	}
+	return val
+}
+
+func parseSubValues(s string) Values {
+	values := Values{Values: url.Values{}}
+	for _, kv := range strings.Split(s, ",") {
+		pair := strings.SplitN(kv, "/", 2)
+		values.Add(pair[0], pair[1])
+	}
+
+	return values
+}
+
 func NewServer(dbfile string) *Server {
-	//cache := httpcache.NewMemoryCache()
 	//cache := diskcache.NewWithDiskv(
 	//	diskv.New(diskv.Options{
 	//		BasePath:     "/tmp/istorecache",
@@ -343,6 +365,10 @@ func (s *Server) GetApply(r *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("target not found in path %s", path)
 	}
 
+	if glog.V(2) {
+		glog.Info("GetApply ", Url)
+	}
+
 	resp, err := s.Client.Get(Url)
 	if err != nil {
 		if resp != nil {
@@ -400,6 +426,28 @@ func handleApply(resp *http.Response, r *http.Request) (newresp *http.Response, 
 		}
 		if img, err = crop(resp.Body, x0, y0, x1, y1); err != nil {
 			return nil, err
+		}
+
+	case "drawRect":
+		if err = r.ParseForm(); err == nil {
+			// rects=x1/100,y1/100,x2/200,y2/200,r/255,g/0,b/0
+			opts := []*drawRectOptions{}
+			for _, val := range r.Form["rects"] {
+				subvalues := parseSubValues(val)
+				opt := &drawRectOptions{
+					X1: subvalues.GetInt("x1", 0),
+					Y1: subvalues.GetInt("y1", 0),
+					X2: subvalues.GetInt("x2", 0),
+					Y2: subvalues.GetInt("y2", 0),
+					R:  uint8(subvalues.GetInt("r", 0)),
+					G:  uint8(subvalues.GetInt("g", 0)),
+					B:  uint8(subvalues.GetInt("b", 0)),
+				}
+				opts = append(opts, opt)
+			}
+			if img, err = drawRect(resp.Body, opts); err != nil {
+				return nil, err
+			}
 		}
 
 	case "fit":
