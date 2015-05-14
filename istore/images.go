@@ -122,9 +122,9 @@ func blur(input io.Reader, sigma float64) ([]byte, error) {
 	})
 }
 
-func crop(input io.Reader, x0, y0, x1, y1 int) ([]byte, error) {
+func crop(input io.Reader, x1, y1, x2, y2 int) ([]byte, error) {
 	return processImage(input, func(m image.Image) image.Image {
-		return imaging.Crop(m, image.Rect(x0, y0, x1, y1))
+		return imaging.Crop(m, image.Rect(x1, y1, x2, y2))
 	})
 }
 

@@ -180,6 +180,7 @@ func (s *Server) PutObject(key []byte, value string, batch *leveldb.Batch, overw
 			usermeta = meta.MetaData
 		}
 		if err := json.Unmarshal([]byte(value), &usermeta); err != nil {
+			glog.Info("failed to unmarshal input json. ", err, " for ", value)
 			return nil, false, err
 		}
 	}
@@ -187,13 +188,18 @@ func (s *Server) PutObject(key []byte, value string, batch *leveldb.Batch, overw
 	meta.MetaData = usermeta
 
 	metabytes = []byte{}
-	metabytes, err = msgp.AppendIntf(metabytes, &meta)
+	metabytes, err = meta.MarshalMsg(metabytes)
 	if err != nil {
 		return nil, false, err
 	}
 
 	// User path -> metadata
 	batch.Put([]byte(key), metabytes)
+
+	meta2 := ItemMeta{}
+	if _, err := meta2.UnmarshalMsg(metabytes); err != nil {
+		glog.Error("cannot read just-written bytes. ", err, " ", string(metabytes), " len = ", len(metabytes), " MsgSize = ", meta.Msgsize(), " json input = ", value)
+	}
 
 	if isnew {
 		itemId := meta.ItemId
@@ -417,14 +423,14 @@ func handleApply(resp *http.Response, r *http.Request) (newresp *http.Response, 
 		}
 
 	case "crop":
-		x0, err := strconv.Atoi(r.FormValue("x0"))
-		y0, err := strconv.Atoi(r.FormValue("y0"))
 		x1, err := strconv.Atoi(r.FormValue("x1"))
 		y1, err := strconv.Atoi(r.FormValue("y1"))
-		if x0 == 0 && y0 == 0 && x1 == 0 && y1 == 0 {
+		x2, err := strconv.Atoi(r.FormValue("x2"))
+		y2, err := strconv.Atoi(r.FormValue("y2"))
+		if x1 == 0 && y1 == 0 && x2 == 0 && y2 == 0 {
 			return resp, nil
 		}
-		if img, err = crop(resp.Body, x0, y0, x1, y1); err != nil {
+		if img, err = crop(resp.Body, x1, y1, x2, y2); err != nil {
 			return nil, err
 		}
 
