@@ -3,6 +3,9 @@ package lru
 import (
 	"container/list"
 	"sync"
+
+	"github.com/gregjones/httpcache/diskcache"
+	"github.com/peterbourgon/diskv"
 )
 
 type Cache struct {
@@ -11,6 +14,7 @@ type Cache struct {
 	ll           *list.List
 	cache        map[string]*list.Element
 	mu           sync.RWMutex
+	d            *diskcache.Cache
 }
 
 type entry struct {
@@ -19,10 +23,23 @@ type entry struct {
 }
 
 func New(maxBytes int) *Cache {
+	// TODO: not used yet.
+	// - Set diskcache when memorycache is set, but asyncronously
+	// - async diskcache should be synchronized with the same key
+	// - Get tests both in-memory and then diskcache
+	// - Delete deletes both, while in-memory set doen't.
+	// - Need a way to pass diskcache option, disable diskcache (to pass test)
+	d := diskcache.NewWithDiskv(
+		diskv.New(diskv.Options{
+			BasePath:     "/tmp/istorecache",
+			CacheSizeMax: uint64(maxBytes * 10),
+		}),
+	)
 	return &Cache{
 		MaxBytes: maxBytes,
 		ll:       list.New(),
 		cache:    map[string]*list.Element{},
+		d:        d,
 	}
 }
 
