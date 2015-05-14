@@ -18,7 +18,7 @@ import (
 	"github.com/gregjones/httpcache"
 	"github.com/syndtr/goleveldb/leveldb"
 	levelutil "github.com/syndtr/goleveldb/leveldb/util"
-	"github.com/tinylib/msgp/msgp"
+	"github.com/umitanuki/msgp/msgp"
 )
 
 const _PathIdSeq = "sys.seq"

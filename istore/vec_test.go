@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/tinylib/msgp/msgp"
+	"github.com/umitanuki/msgp/msgp"
 	. "gopkg.in/check.v1"
 )
-
 
 func (_ *S) TestVec32(c *C) {
 	vec := &Vec32{[]float32{0.1, 0.2, 0.3}}

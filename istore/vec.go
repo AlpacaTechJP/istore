@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/tinylib/msgp/msgp"
+	"github.com/umitanuki/msgp/msgp"
 )
 
 type Vec32 struct {
