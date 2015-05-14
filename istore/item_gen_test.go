@@ -1,12 +1,12 @@
 package istore 
 
 // NOTE: THIS FILE WAS PRODUCED BY THE
-// MSGP CODE GENERATION TOOL (github.com/umitanuki/msgp)
+// MSGP CODE GENERATION TOOL (github.com/tinylib/msgp)
 // DO NOT EDIT
 
 import (
 	"bytes"
-	"github.com/umitanuki/msgp/msgp"
+	"github.com/tinylib/msgp/msgp"
 	"testing"
 )
 

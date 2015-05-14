@@ -30,12 +30,12 @@
 			"Rev": "156a073208e131d7d2e212cb749feae7c339e846"
 		},
 		{
-			"ImportPath": "github.com/umitanuki/gmf",
-			"Rev": "1fe6e1dcf5666f59e7d5ff4e603a710dcac11a37"
+			"ImportPath": "github.com/tinylib/msgp/msgp",
+			"Rev": "75ee40d2601edf122ef667e2a07d600d4c44490c"
 		},
 		{
-			"ImportPath": "github.com/umitanuki/msgp/msgp",
-			"Rev": "e0e76d5c0c7bfa484dcc92e960309d8da371f55b"
+			"ImportPath": "github.com/umitanuki/gmf",
+			"Rev": "1fe6e1dcf5666f59e7d5ff4e603a710dcac11a37"
 		},
 		{
 			"ImportPath": "golang.org/x/image/bmp",

@@ -922,14 +922,14 @@ func ReadIntfBytes(b []byte) (i interface{}, o []byte, err error) {
 
 	case ArrayType:
 		var sz uint32
-		sz, o, err = ReadArrayHeaderBytes(b)
+		sz, b, err = ReadArrayHeaderBytes(b)
 		if err != nil {
 			return
 		}
 		j := make([]interface{}, int(sz))
 		i = j
 		for d := range j {
-			j[d], o, err = ReadIntfBytes(o)
+			j[d], b, err = ReadIntfBytes(b)
 			if err != nil {
 				return
 			}

@@ -1,12 +1,60 @@
 package istore
 
 // NOTE: THIS FILE WAS PRODUCED BY THE
-// MSGP CODE GENERATION TOOL (github.com/umitanuki/msgp)
+// MSGP CODE GENERATION TOOL (github.com/tinylib/msgp)
 // DO NOT EDIT
 
 import (
-	"github.com/umitanuki/msgp/msgp"
+	"github.com/tinylib/msgp/msgp"
 )
+
+// DecodeMsg implements msgp.Decodable
+func (z *ItemId) DecodeMsg(dc *msgp.Reader) (err error) {
+	{
+		var tmp uint64
+		tmp, err = dc.ReadUint64()
+		(*z) = ItemId(tmp)
+	}
+	if err != nil {
+		return
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z ItemId) EncodeMsg(en *msgp.Writer) (err error) {
+	err = en.WriteUint64(uint64(z))
+	if err != nil {
+		return
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z ItemId) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	o = msgp.AppendUint64(o, uint64(z))
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *ItemId) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	{
+		var tmp uint64
+		tmp, bts, err = msgp.ReadUint64Bytes(bts)
+		(*z) = ItemId(tmp)
+	}
+	if err != nil {
+		return
+	}
+	o = bts
+	return
+}
+
+func (z ItemId) Msgsize() (s int) {
+	s = msgp.Uint64Size
+	return
+}
 
 // DecodeMsg implements msgp.Decodable
 func (z *ItemMeta) DecodeMsg(dc *msgp.Reader) (err error) {
@@ -214,53 +262,5 @@ func (z *ItemMeta) Msgsize() (s int) {
 			s += msgp.StringPrefixSize + len(xvk) + msgp.GuessSize(bzg)
 		}
 	}
-	return
-}
-
-// DecodeMsg implements msgp.Decodable
-func (z *ItemId) DecodeMsg(dc *msgp.Reader) (err error) {
-	{
-		var tmp uint64
-		tmp, err = dc.ReadUint64()
-		(*z) = ItemId(tmp)
-	}
-	if err != nil {
-		return
-	}
-	return
-}
-
-// EncodeMsg implements msgp.Encodable
-func (z ItemId) EncodeMsg(en *msgp.Writer) (err error) {
-	err = en.WriteUint64(uint64(z))
-	if err != nil {
-		return
-	}
-	return
-}
-
-// MarshalMsg implements msgp.Marshaler
-func (z ItemId) MarshalMsg(b []byte) (o []byte, err error) {
-	o = msgp.Require(b, z.Msgsize())
-	o = msgp.AppendUint64(o, uint64(z))
-	return
-}
-
-// UnmarshalMsg implements msgp.Unmarshaler
-func (z *ItemId) UnmarshalMsg(bts []byte) (o []byte, err error) {
-	{
-		var tmp uint64
-		tmp, bts, err = msgp.ReadUint64Bytes(bts)
-		(*z) = ItemId(tmp)
-	}
-	if err != nil {
-		return
-	}
-	o = bts
-	return
-}
-
-func (z ItemId) Msgsize() (s int) {
-	s = msgp.Uint64Size
 	return
 }
