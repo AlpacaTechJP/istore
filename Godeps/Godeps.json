@@ -31,7 +31,7 @@
 		},
 		{
 			"ImportPath": "github.com/tinylib/msgp/msgp",
-			"Rev": "75ee40d2601edf122ef667e2a07d600d4c44490c"
+			"Rev": "ccbcaa5f7fe819c57391c1be13cbcf05d8fb4a7c"
 		},
 		{
 			"ImportPath": "github.com/umitanuki/gmf",
