@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/AlpacaDB/istore/lru"
 	"github.com/golang/glog"
@@ -516,7 +517,7 @@ func handleApply(resp *http.Response, r *http.Request) (newresp *http.Response, 
 		}
 
 		buf := new(bytes.Buffer)
-		fmt.Fprintf(buf, "%s %s", resp.Proto, resp.Status)
+		fmt.Fprintf(buf, "%s %s\n", resp.Proto, resp.Status)
 		fmt.Fprintf(buf, "Content-Length: %d\n", len(img))
 		fmt.Fprintf(buf, "Content-type: image/jpeg\n\n")
 		buf.Write(img)
@@ -535,7 +536,7 @@ func handleApply(resp *http.Response, r *http.Request) (newresp *http.Response, 
 		"Cache-Control":  true,
 	}
 	resp.Header.WriteSubset(buf, excludes)
-	//fmt.Fprintf(buf, "Date: %s\n", time.Now().String())
+	fmt.Fprintf(buf, "Date: %s\n", time.Now().Format(time.RFC1123))
 	fmt.Fprintf(buf, "Cache-Control: max-age=1000000\n")
 	fmt.Fprintf(buf, "Content-Length: %d\n\n", len(img))
 	buf.Write(img)
