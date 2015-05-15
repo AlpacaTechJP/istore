@@ -45,7 +45,7 @@ func jsonArrayToFloat32(data interface{}) []float32 {
 
 func convertJsonForQuery(value []byte, by string, item *ItemMeta) bool {
 	if value != nil {
-		if err := json.Unmarshal(value, &item); err != nil {
+		if _, err := item.UnmarshalMsg(value); err != nil {
 			glog.Error("failed to unmarshal metadata from db", err)
 			return false
 		}
@@ -77,8 +77,8 @@ func (g *ItemGetter) Get(itemid uint64) lsh.Item {
 	if key, err := g.server.Db.Get(ItemId(itemid).Key(), nil); err == nil {
 		if data, err := g.server.Db.Get(key, nil); err == nil {
 			item := ItemMeta{}
-			item.FilePath = string(key)
 			convertJsonForQuery(data, g.query.Similar.By, &item)
+			item.FilePath = string(key)
 			return &ItemVector{
 				item:  item,
 				query: g.query,
@@ -118,16 +118,16 @@ func (s *Server) PerformSearchBluteForce(query *Query) []ItemMeta {
 	items := make([]ItemMeta, 0)
 	for iter.Next() {
 		item := ItemMeta{}
-		item.FilePath = string(iter.Key())
 
 		value := iter.Value()
 		if !convertJsonForQuery(value, query.Similar.By, &item) {
 			continue
 		}
+		item.FilePath = string(iter.Key())
 		items = append(items, item)
 	}
 
-	angular := lsh.Angular{}
+	dist := lsh.Angular{}
 	(&itemSort{
 		LenFunc: func() int {
 			return len(items)
@@ -141,8 +141,8 @@ func (s *Server) PerformSearchBluteForce(query *Query) []ItemMeta {
 			vec_j := items[j].MetaData[query.Similar.By].([]float32)
 			vec_to := query.Similar.to.MetaData[query.Similar.By].([]float32)
 			// TODO: check dimension
-			dist_i := angular.Distance(vec_i, vec_to)
-			dist_j := angular.Distance(vec_j, vec_to)
+			dist_i := dist.Distance(vec_i, vec_to)
+			dist_j := dist.Distance(vec_j, vec_to)
 			return dist_i < dist_j
 		},
 	}).Sort()

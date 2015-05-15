@@ -3,6 +3,7 @@ package istore
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"image"
 	_ "image/jpeg"
 	"io/ioutil"
@@ -211,6 +212,64 @@ func (_ *S) TestSelf(c *C) {
 	resizedImg2, format, err := image.Decode(bytes.NewReader(mock.body.Bytes()))
 	c.Check(format, Equals, "jpeg")
 	c.Check(resizedImg2.Bounds().Max, Equals, resizedImg.Bounds().Max)
+}
+
+func (_ *S) TestSearch(c *C) {
+	name, _ := ioutil.TempDir("", "istore")
+	server := NewServer(name)
+
+	request := func(method, path string, data interface{}, res interface{}) (w *mockWriter, err error) {
+		Url := "http://example.com" + path
+		var r *http.Request
+		if data == nil {
+			r, err = http.NewRequest(method, Url, nil)
+		} else if formval, ok := data.(url.Values); ok {
+			r, err = sendForm(method, Url, formval)
+		} else if bodydata, ok := data.(string); ok {
+			r, err = http.NewRequest(method, Url, strings.NewReader(bodydata))
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		} else {
+			panic("unexpected input type")
+		}
+		w = newMockWriter()
+		server.ServeHTTP(w, r)
+
+		if res != nil {
+			err = json.Unmarshal(w.body.Bytes(), res)
+		}
+		return
+	}
+
+	var mock *mockWriter
+	var err error
+
+	mock, err = request("POST", "/path/vec/http://example.com/0.jpg",
+		url.Values{"metadata": {`{"vec": [0.5, 0.8]}`}}, nil)
+	c.Check(err, Equals, nil)
+	mock, err = request("POST", "/path/vec/http://example.com/a.jpg",
+		url.Values{"metadata": {`{"vec": [1.0, 0.0]}`}}, nil)
+	c.Check(err, Equals, nil)
+	mock, err = request("POST", "/path/vec/http://example.com/b.jpg",
+		url.Values{"metadata": {`{"vec": [0.0, 1.0]}`}}, nil)
+	c.Check(err, Equals, nil)
+	mock, err = request("POST", "/path/vec/http://example.com/c.jpg",
+		url.Values{"metadata": {`{"vec": [-0.1, -0.1]}`}}, nil)
+	c.Check(err, Equals, nil)
+
+	var res []interface{}
+	mock, err = request("POST", "/path/vec/_search",
+		`{"similar": {"to": "/path/vec/http://example.com/0.jpg", "by": "vec", "limit": 10}}`, &res)
+	c.Check(err, Equals, nil)
+
+	c.Check(res[0].(map[string]interface{})["_filepath"], Equals, "/path/vec/http://example.com/0.jpg")
+	c.Check(res[1].(map[string]interface{})["_filepath"], Equals, "/path/vec/http://example.com/b.jpg")
+	c.Check(res[2].(map[string]interface{})["_filepath"], Equals, "/path/vec/http://example.com/a.jpg")
+	c.Check(res[3].(map[string]interface{})["_filepath"], Equals, "/path/vec/http://example.com/c.jpg")
+
+	fmt.Println(mock.body.String())
+
+	_ = mock
+	_ = err
 }
 
 func (_ *S) TestItemId(c *C) {
